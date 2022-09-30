@@ -192,14 +192,14 @@ export abstract class OkxApi {
       return createHmac('sha256', secret).update(message).digest('base64');
     }
     // Si no s'ha pogut importar la funció en entorn browser, li donem suport.
-    const encoder = new TextEncoder();
-    const keyData = encoder.encode(secret);
-    const algorithm = {name: 'HMAC', hash: {name: 'SHA-256'}};
-    const extractable = false;
-    const keyUsages: KeyUsage[] = ['sign'];
-    const key = await window.crypto.subtle.importKey('raw', keyData, algorithm, extractable, keyUsages);
-    const signature = await window.crypto.subtle.sign('HMAC', key, encoder.encode(message));
-    return Buffer.from(signature).toString('base64');
+    // const encoder = new TextEncoder();
+    // const keyData = encoder.encode(secret);
+    // const algorithm = {name: 'HMAC', hash: {name: 'SHA-256'}};
+    // const extractable = false;
+    // const keyUsages: KeyUsage[] = ['sign'];
+    // const key = await window.crypto.subtle.importKey('raw', keyData, algorithm, extractable, keyUsages);
+    // const signature = await window.crypto.subtle.sign('HMAC', key, encoder.encode(message));
+    // return Buffer.from(signature).toString('base64');
   };
 
   protected parseException(e: AxiosError, url: string): unknown {

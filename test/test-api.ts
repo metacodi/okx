@@ -64,21 +64,26 @@ const testApi = async () => {
     //  Account (Spot)
     // ---------------------------------------------------------------------------------------------------
     
-    // console.log('getAccountOverview() =>', await api.getAccountOverview());
     // api.getAccountOverview().then( (res: any) => {
     //   res.map( (r: any) => { console.log(r.details ); });
     // });
 
-    // console.log('getPositions() =>', await api.getPositions());
     // api.getPositions().then( (res: any) => {
     //   res.map( (r: any) => { console.log(r.details ); });
     // });
 
-    // console.log('getPositionsHistory() =>', await api.getPositionsHistory());
-    api.getPositionsHistory().then( (res: any) => {
-      res.map( (r: any) => { console.log(r.details ); });
-    });
+    // api.getPositionsHistory().then( (res: any) => {
+    //   res.map( (r: any) => { console.log(r.details ); });
+    // });
+      
+    // console.log('setPositionMode() =>', await api.setPositionMode('long_short_mode'));
 
+    // console.log('getLeverage() =>', await api.getLeverage('BTC-USD-SWAP', 'isolated'));
+
+    /** No logro que me funcioni */
+    console.log('setLeverage() =>', await api.setLeverage('5', 'isolated', { instId: 'BTC-USD-SWAP' }));
+
+    // console.log('getFeeRates() =>', await api.getFeeRates('SWAP'));
 
 
 

@@ -123,8 +123,9 @@ export class OkxApiFunctions extends OkxApi {
 
   /** {@link https://www.okx.com/docs-v5/en/#rest-api-account-set-position-mode Set position mode} */
   async setPositionMode(posMode: string): Promise<any> {
-    posMode = posMode === undefined ? 'short' : posMode; // long_short_mode: long/short, only applicable to FUTURES/SWAP
-    const results = await this.get(`api/v5/account/set-position-mode?posMode=${posMode}`) as { code: string; data: any };
+    posMode = posMode === undefined ? 'long_short_mode' : posMode; // long_short_mode: long/short, only applicable to FUTURES/SWAP
+    const params = { posMode };
+    const results = await this.post(`api/v5/account/set-position-mode`, { params }) as { code: string; data: any };
     if (results.code === '0') { return results.data; }
     return Promise.reject(results);
   }
@@ -141,32 +142,25 @@ export class OkxApiFunctions extends OkxApi {
     const instId = options?.instId === undefined ? '' : options.instId;
     const ccy = options?.ccy === undefined ? '' : options.ccy;
     const posSide = options?.posSide === undefined ? '' : options.posSide;
-    const results = await this.get(`api/v5/account/set-leverage?lever=${lever}&mgnMode=${mgnMode}&instId=${instId}}&ccy=${ccy}}&posSide=${posSide}`) as { code: string; data: any };
+    const params = { lever, mgnMode, instId, ccy, posSide };
+    const results = await this.post(`api/v5/account/set-leverage`, { params }) as { code: string; data: any };
     if (results.code === '0') { return results.data; }
     return Promise.reject(results);
   }
 
-  // /** {@link https://docs.kucoin.com/futures/#get-position-list Get Position List} */
-  // async getPositions(): Promise<KucoinFuturesPosition> {
-  //   return this.get('api/v1/positions');
-  // }
+  /** {@link https://www.okx.com/docs-v5/en/#rest-api-account-get-fee-rates Get fee rates} */
+  async getFeeRates(instType: string, options?: { instId?: string, uly?: string, posSide?: string }): Promise<any> {
+    const instId = options?.instId === undefined ? '' : options.instId;
+    const uly = options?.uly === undefined ? '' : options.uly;
+    const results = await this.get(`api/v5/account/trade-fee?instType=${instType}&instId=${instId}&uly=${uly}`) as { code: string; data: any };
+    if (results.code === '0') { return results.data; }
+    return Promise.reject(results);
+  }
 
-  // /** {@link https://docs.kucoin.com/futures/#get-position-details Get Position Details} */
-  // async getPosition(params: KucoinFuturesSymbolRequest): Promise<KucoinFuturesPosition> {
-  //   return this.get('api/v1/position', { params });
-  // }
-  
-  // /** {@link https://docs.kucoin.com/futures/#risk-limit-level Risk Limit Level} */
-  // async getRiskLimitLevel(symbol: string): Promise<KucoinFuturesRiskLimit[]> {
-  //   const results = await this.get(`api/v1/contracts/risk-limit/${symbol}`) as { code: string; data: KucoinFuturesRiskLimit[] };
-  //   if (results.code === '200000') { return results.data; }
-  //   return Promise.reject(results);
-  // }
-  
 
-  // // ---------------------------------------------------------------------------------------------------
-  // //  Orders
-  // // ---------------------------------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------------------------------
+  //  Orders
+  // ---------------------------------------------------------------------------------------------------
 
   // /** {@link https://docs.kucoin.com/futures/#get-order-list Get Order List} */
   // async getOrders(params?: KucoinFuturesGetOrdersRequest): Promise<KucoinFuturesGetOrdersResponse> {
