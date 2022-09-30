@@ -19,9 +19,11 @@ const testApi = async () => {
     
     console.log('---------------- API TEST ----------------------');
  
+    const isTest = true;
+
     const options: OkxApiOptions = {
-      ...getApiKeys(),
-      // isTest: true,
+      ...getApiKeys({ isTest}),
+      isTest,
     } as any;
 
     // if (options.isTest) { setTestKeys(options, market); }
@@ -53,9 +55,31 @@ const testApi = async () => {
     //  Market Data
     // ---------------------------------------------------------------------------------------------------
     
-    console.log('getSymbolPriceTicker() =>', await api.getSymbolPriceTicker('BTC-USD-SWAP'));
+    // console.log('getSymbolPriceTicker() =>', await api.getSymbolPriceTicker('BTC-USD-SWAP'));
+    // console.log('getKChart() =>', await api.getKChart('BTC-USD-SWAP'));
+    // console.log('getKChartHistory() =>', await api.getKChartHistory('BTC-USD-SWAP'));
     
     
+    // ---------------------------------------------------------------------------------------------------
+    //  Account (Spot)
+    // ---------------------------------------------------------------------------------------------------
+    
+    // console.log('getAccountOverview() =>', await api.getAccountOverview());
+    // api.getAccountOverview().then( (res: any) => {
+    //   res.map( (r: any) => { console.log(r.details ); });
+    // });
+
+    // console.log('getPositions() =>', await api.getPositions());
+    // api.getPositions().then( (res: any) => {
+    //   res.map( (r: any) => { console.log(r.details ); });
+    // });
+
+    // console.log('getPositionsHistory() =>', await api.getPositionsHistory());
+    api.getPositionsHistory().then( (res: any) => {
+      res.map( (r: any) => { console.log(r.details ); });
+    });
+
+
 
 
     // Probat fins aqui.
@@ -88,10 +112,6 @@ const testApi = async () => {
       
       // console.log('getSymbolKlines({ market }) =>', await api.getSymbolKlines({ symbol: 'BNB-USDT', type: '1hour' }));
 
-      // ---------------------------------------------------------------------------------------------------
-      //  Account (Spot)
-      // ---------------------------------------------------------------------------------------------------
-      
       // console.log('getUserInfo() =>', await api.getUserInfo());
       
       // console.log('getAccountsList() =>', await api.getAccountsList());

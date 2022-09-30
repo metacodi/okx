@@ -60,41 +60,91 @@ export class OkxApiFunctions extends OkxApi {
     return Promise.reject(results);
   }
 
+   /** {@link https://www.okx.com/docs-v5/en/#rest-api-market-data-get-candlesticks Get candlesticks} */
+   async getKChart(symbol: string, options?: { bar?: string, after?: string, before?: string, limit?: string }): Promise<any> {
+    const bar = options?.bar === undefined ? '' : options.bar;
+    const after = options?.after === undefined ? '' : options.after;
+    const before = options?.before === undefined ? '' : options.before;
+    const limit = options?.limit === undefined ? '' : options.limit;
+    const results = await this.get(`api/v5/market/candles?instId=${symbol}&bar=${bar}&after=${after}&before=${before}&limit=${limit}`, { isPublic: true }) as { code: string; data: any };
+    if (results.code === '0') { return results.data; }
+    return Promise.reject(results);
+  }
+
+   /** {@link https://www.okx.com/docs-v5/en/#rest-api-market-data-get-candlesticks-history Get candlesticks history} */
+   async getKChartHistory(symbol: string, options?: { bar?: string, after?: string, before?: string, limit?: string }): Promise<any> {
+    const bar = options?.bar === undefined ? '' : options.bar;
+    const after = options?.after === undefined ? '' : options.after;
+    const before = options?.before === undefined ? '' : options.before;
+    const limit = options?.limit === undefined ? '' : options.limit;
+    const results = await this.get(`api/v5/market/history-candles?instId=${symbol}&bar=${bar}&after=${after}&before=${before}&limit=${limit}`, { isPublic: true }) as { code: string; data: any };
+    if (results.code === '0') { return results.data; }
+    return Promise.reject(results);
+  }
 
   
-  // /** {@link https://docs.kucoin.com/futures/#get-open-contract-list Get Open Contract List} */
-  // getActiveSymbols(): Promise<any[]> {
-  //   return this.get(`api/v1/contracts/active`, { isPublic: true });
-  // }
+  // ---------------------------------------------------------------------------------------------------
+  //  Account
+  // ---------------------------------------------------------------------------------------------------
+  
+  /** {@link https://www.okx.com/docs-v5/en/#rest-api-account-get-balance Get balance} */
+  async getAccountOverview(ccy?: string): Promise<any> {
+    ccy = ccy === undefined ? '' : ccy;
+    const results = await this.get(`api/v5/account/balance?ccy=${ccy}`) as { code: string; data: any };
+    if (results.code === '0') { return results.data; }
+    return Promise.reject(results);
+  }
 
-  // /** {@link https://docs.kucoin.com/futures/#get-order-info-of-the-contract Get Order Info of the Contract} */
-  // getSymbolInformation(symbol: string): Promise<KucoinFuturesSymbolInformation> {
-  //   return this.get(`api/v1/contracts/${symbol}`, { isPublic: true });
-  // }
+  /** {@link https://www.okx.com/docs-v5/en/#rest-api-account-get-positions Get positions} */
+  async getPositions(options?: { instType?: string, instId?: string, posId?: string }): Promise<any> {
+    const instType = options?.instType === undefined ? '' : options.instType;
+    const instId = options?.instId === undefined ? '' : options.instId;
+    const posId = options?.posId === undefined ? '' : options.posId;
+    const results = await this.get(`api/v5/account/positions?instType=${instType}&instId=${instId}&posId=${posId}`) as { code: string; data: any };
+    if (results.code === '0') { return results.data; }
+    return Promise.reject(results);
 
-  // /** {@link https://docs.kucoin.com/futures/#get-real-time-ticker Get Ticker} */
-  // async getSymbolPriceTicker(params: KucoinFuturesSymbolRequest): Promise<KucoinFuturesSymbolPriceTicker> {
-  //   const results = await this.get(`api/v1/ticker`, { isPublic: true, params }) as { code: string; data: KucoinFuturesSymbolPriceTicker };
-  //   if (results.code === '200000') { return results.data; }
-  //   return Promise.reject(results);
-  // }
+  }
 
-  // /** {@link https://docs.kucoin.com/futures/#k-chart Get K Line Data of Contract} */
-  // getKChart(symbol: string, from: number, to: number): Promise<any> {
-  //   return this.get(`api/v1/kline/query?symbol=${symbol}&granularity=1&from=${from}&to=${to}`, { isPublic: true });
-  // }
+  /** {@link https://www.okx.com/docs-v5/en/#rest-api-account-get-positions-history Get positions history} */
+  async getPositionsHistory(options?: { instType?: string, instId?: string, mgnMode?: string, type?: string, posId?: string, after?: string, before?: string, limit?: string }): Promise<any> {
+    const instType = options?.instType === undefined ? '' : options.instType;
+    const instId = options?.instId === undefined ? '' : options.instId;
+    const mgnMode = options?.mgnMode === undefined ? '' : options.mgnMode;
+    const type = options?.type === undefined ? '' : options.type;
+    const posId = options?.posId === undefined ? '' : options.posId;
+    const after = options?.after === undefined ? '' : options.after;
+    const before = options?.before === undefined ? '' : options.before;
+    const limit = options?.limit === undefined ? '' : options.limit;
+    const results = await this.get(`api/v5/account/positions-history?instType=${instType}&instId=${instId}&mgnMode=${mgnMode}&type=${type}&posId=${posId}&after=${after}&before=${before}&limit=${limit}`) as { code: string; data: any };
+    if (results.code === '0') { return results.data; }
+    return Promise.reject(results);
+  }
 
+  /** {@link https://www.okx.com/docs-v5/en/#rest-api-account-set-position-mode Set position mode} */
+  async setPositionMode(posMode: string): Promise<any> {
+    posMode = posMode === undefined ? 'short' : posMode; // long_short_mode: long/short, only applicable to FUTURES/SWAP
+    const results = await this.get(`api/v5/account/set-position-mode?posMode=${posMode}`) as { code: string; data: any };
+    if (results.code === '0') { return results.data; }
+    return Promise.reject(results);
+  }
 
-  // // ---------------------------------------------------------------------------------------------------
-  // //  Account
-  // // ---------------------------------------------------------------------------------------------------
+  /** {@link https://www.okx.com/docs-v5/en/#rest-api-account-get-leverage Get leverage} */
+  async getLeverage(instId: string, mgnMode: string): Promise<any> {
+    const results = await this.get(`api/v5/account/leverage-info?instId=${instId}&mgnMode=${mgnMode}`) as { code: string; data: any };
+    if (results.code === '0') { return results.data; }
+    return Promise.reject(results);
+  }
 
-  // /** {@link https://docs.kucoin.com/futures/#get-account-overview Get Account Overview} */
-  // async getAccountOverview(params?: KucoinFuturesAccountOverviewRequest): Promise<KucoinFuturesAccountOverview> {
-  //   const results = await this.get('api/v1/account-overview', { params }) as { code: string; data: KucoinFuturesAccountOverview };
-  //   if (results.code === '200000') { return results.data; }
-  //   return Promise.reject(results);
-  // }
+  /** {@link https://www.okx.com/docs-v5/en/#rest-api-account-set-leverage Set leverage} */
+  async setLeverage(lever: string, mgnMode: string, options?: { instId?: string, ccy?: string, posSide?: string }): Promise<any> {
+    const instId = options?.instId === undefined ? '' : options.instId;
+    const ccy = options?.ccy === undefined ? '' : options.ccy;
+    const posSide = options?.posSide === undefined ? '' : options.posSide;
+    const results = await this.get(`api/v5/account/set-leverage?lever=${lever}&mgnMode=${mgnMode}&instId=${instId}}&ccy=${ccy}}&posSide=${posSide}`) as { code: string; data: any };
+    if (results.code === '0') { return results.data; }
+    return Promise.reject(results);
+  }
 
   // /** {@link https://docs.kucoin.com/futures/#get-position-list Get Position List} */
   // async getPositions(): Promise<KucoinFuturesPosition> {

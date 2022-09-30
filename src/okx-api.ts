@@ -143,7 +143,7 @@ export abstract class OkxApi {
   protected async getAuthHeaders(method: string, endpoint: string, params: any) {
     const { apiKey, apiSecret, apiPassphrase } = this;
     // const { authVersion } = getConfig();
-    const timestamp = Date.now() + '';
+    const timestamp = new Date().toISOString();
     // const message = timestamp + method.toUpperCase() + endpoint + data;
     const data = (method === 'GET' || method === 'DELETE') ? this.formatQuery(params) : JSON.stringify(params).slice(1, -1);
     const message = timestamp + method + endpoint + data;
@@ -153,8 +153,9 @@ export abstract class OkxApi {
       // 'User-Agent': `KuCoin-Node-SDK/${version}`,
       'OK-ACCESS-KEY': apiKey,
       'OK-ACCESS-SIGN': signature,
-      'OK-ACCESS-TIMESTAMP': timestamp.toString(),
+      'OK-ACCESS-TIMESTAMP': timestamp,
       'OK-ACCESS-PASSPHRASE': apiPassphrase || '',
+      'x-simulated-trading': this.isTest ? '1' : '0',
     };
     return headers;
   }
