@@ -24,6 +24,7 @@
     "dist",
     "test",
     "precode",
-    "node_modules"
+    "publish",
+    "node_modules",
   ]
 }
