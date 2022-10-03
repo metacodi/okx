@@ -2,7 +2,7 @@ import { OkxApi } from "./okx-api";
 import { OkxApiOptions, OkxMarketType } from "./types/okx.types";
 
 export class OkxApiFunctions extends OkxApi {
-  
+
   market: OkxMarketType = 'SPOT';
 
   constructor(
@@ -41,7 +41,7 @@ export class OkxApiFunctions extends OkxApi {
     return this.get(`api/v5/public/price-limit?instId=${symbol}`, { isPublic: true });
   }
 
- /** {@link https://www.okx.com/docs-v5/en/#rest-api-public-data-get-mark-price Get mark price} */
+  /** {@link https://www.okx.com/docs-v5/en/#rest-api-public-data-get-mark-price Get mark price} */
   async getMarketPrice(symbol: string): Promise<any> {
     const results = await this.get(`api/v5/public/mark-price?instType=${this.market}&instId=${symbol}`, { isPublic: true }) as { code: string; data: any };
     if (results.code === '0') { return results.data; }
@@ -53,15 +53,15 @@ export class OkxApiFunctions extends OkxApi {
   //  Market
   // ---------------------------------------------------------------------------------------------------
 
-   /** {@link https://www.okx.com/docs-v5/en/#rest-api-market-data-get-ticker Get ticker} */
-   async getSymbolPriceTicker(symbol: string): Promise<any> {
+  /** {@link https://www.okx.com/docs-v5/en/#rest-api-market-data-get-ticker Get ticker} */
+  async getSymbolPriceTicker(symbol: string): Promise<any> {
     const results = await this.get(`api/v5/market/ticker?instId=${symbol}`, { isPublic: true }) as { code: string; data: any };
     if (results.code === '0') { return results.data; }
     return Promise.reject(results);
   }
 
-   /** {@link https://www.okx.com/docs-v5/en/#rest-api-market-data-get-candlesticks Get candlesticks} */
-   async getKChart(symbol: string, options?: { bar?: string, after?: string, before?: string, limit?: string }): Promise<any> {
+  /** {@link https://www.okx.com/docs-v5/en/#rest-api-market-data-get-candlesticks Get candlesticks} */
+  async getKChart(symbol: string, options?: { bar?: string, after?: string, before?: string, limit?: string }): Promise<any> {
     const bar = options?.bar === undefined ? '' : options.bar;
     const after = options?.after === undefined ? '' : options.after;
     const before = options?.before === undefined ? '' : options.before;
@@ -71,8 +71,8 @@ export class OkxApiFunctions extends OkxApi {
     return Promise.reject(results);
   }
 
-   /** {@link https://www.okx.com/docs-v5/en/#rest-api-market-data-get-candlesticks-history Get candlesticks history} */
-   async getKChartHistory(symbol: string, options?: { bar?: string, after?: string, before?: string, limit?: string }): Promise<any> {
+  /** {@link https://www.okx.com/docs-v5/en/#rest-api-market-data-get-candlesticks-history Get candlesticks history} */
+  async getKChartHistory(symbol: string, options?: { bar?: string, after?: string, before?: string, limit?: string }): Promise<any> {
     const bar = options?.bar === undefined ? '' : options.bar;
     const after = options?.after === undefined ? '' : options.after;
     const before = options?.before === undefined ? '' : options.before;
@@ -82,11 +82,11 @@ export class OkxApiFunctions extends OkxApi {
     return Promise.reject(results);
   }
 
-  
+
   // ---------------------------------------------------------------------------------------------------
   //  Account
   // ---------------------------------------------------------------------------------------------------
-  
+
   /** {@link https://www.okx.com/docs-v5/en/#rest-api-account-get-balance Get balance} */
   async getAccountOverview(ccy?: string): Promise<any> {
     ccy = ccy === undefined ? '' : ccy;
@@ -161,6 +161,87 @@ export class OkxApiFunctions extends OkxApi {
   // ---------------------------------------------------------------------------------------------------
   //  Orders
   // ---------------------------------------------------------------------------------------------------
+
+  /** {@link https://www.okx.com/docs-v5/en/#rest-api-trade-place-order Place order} */
+  async postOrder(instId: string, tdMode: string, side: string, ordType: string, sz: number, options?: { ccy?: string, clOrdId?: string, posSide?: string }): Promise<any> {
+    let params = { instId, tdMode, side, ordType, sz };
+    params = options?.ccy === undefined ? params : { ...params, ...{ ccy: options.ccy }};
+    params = options?.clOrdId === undefined ? params : { ...params, ...{ clOrdId: options.clOrdId }};
+    params = options?.posSide === undefined ? params : { ...params, ...{ posSide: options.posSide }};
+    const results = await this.post(`api/v5/trade/order`, { params }) as { code: string; data: any };
+    if (results.code === '0') { return results.data; }
+    return Promise.reject(results);
+  }
+
+  /** {@link https://www.okx.com/docs-v5/en/#rest-api-trade-close-positions Close positions} */
+  async closePosition(instId: string, mgnMode: string, options?: { posSide?: string, ccy?: string, clOrdId?: string, autoCxl?: string, tag?: string }): Promise<any> {
+    let params = { instId, mgnMode};
+    params = options?.posSide === undefined ? params : { ...params, ...{ posSide: options.posSide }};
+    params = options?.ccy === undefined ? params : { ...params, ...{ ccy: options.ccy }};
+    params = options?.clOrdId === undefined ? params : { ...params, ...{ clOrdId: options.clOrdId }};
+    params = options?.autoCxl === undefined ? params : { ...params, ...{ autoCxl: options.autoCxl }};
+    params = options?.tag === undefined ? params : { ...params, ...{ tag: options.tag }};
+    const results = await this.post(`api/v5/trade/close-position`, { params }) as { code: string; data: any };
+    if (results.code === '0') { return results.data; }
+    return Promise.reject(results);
+  }
+  
+  
+  /** {@link https://www.okx.com/docs-v5/en/#rest-api-trade-cancel-order Cancel order} */
+  async cancelOrder(instId: string, options?: { ordId?: string, clOrdId?: string }): Promise<any> {
+    let params = { instId };
+    params = options?.ordId === undefined ? params : { ...params, ...{ ordId: options.ordId }};
+    params = options?.clOrdId === undefined ? params : { ...params, ...{ clOrdId: options.clOrdId }};
+    const results = await this.post(`api/v5/trade/cancel-order`, { params }) as { code: string; data: any };
+    if (results.code === '0') { return results.data; }
+    return Promise.reject(results);
+  }
+
+  /** {@link https://www.okx.com/docs-v5/en/#rest-api-trade-get-order-list Get order List} */
+  async getOrders(options?: { instType: string, uly: string, instId: string, ordType?: string, state?: string, after?: string, before?: string, limit?: string }): Promise<any> {
+    let params = {};
+    params = options?.instId === undefined ? params : { ...params, ...{ instId: options.instId }};
+    params = options?.ordType === undefined ? params : { ...params, ...{ ordType: options.ordType }};
+    params = options?.ordType === undefined ? params : { ...params, ...{ ordType: options.ordType }};
+    params = options?.state === undefined ? params : { ...params, ...{ state: options.state }};
+    params = options?.after === undefined ? params : { ...params, ...{ after: options.after }};
+    params = options?.before === undefined ? params : { ...params, ...{ before: options.before }};
+    params = options?.limit === undefined ? params : { ...params, ...{ limit: options.limit }};
+    const results = await this.get(`api/v5/trade/orders-pending`, { params }) as { code: string; data: any };
+    if (results.code === '0') { return results.data; }
+    return Promise.reject(results);
+  }
+
+  /** {@link https://www.okx.com/docs-v5/en/#rest-api-trade-get-order-details Get order details} */
+  async getOrder(instId: string,  options?: { ordId?: string, clOrdId?: string }): Promise<any> {
+    let params = { instId };
+    params = options?.ordId === undefined ? params : { ...params, ...{ ordId: options.ordId }};
+    params = options?.clOrdId === undefined ? params : { ...params, ...{ clOrdId: options.clOrdId }};
+    const results = await this.get(`api/v5/trade/order`, { params }) as { code: string; data: any };
+    if (results.code === '0') { return results.data; }
+    return Promise.reject(results);
+  }
+
+
+  // ---------------------------------------------------------------------------------------------------
+  //  Founding
+  // ---------------------------------------------------------------------------------------------------
+
+  /** {@link https://www.okx.com/docs-v5/en/#rest-api-funding-get-balance Get balance} */
+  async getAssetBalance(ccy?: string): Promise<any> {
+    ccy = ccy === undefined ? '' : ccy;
+    const results = await this.get(`api/v5/asset/balances?ccy=${ccy}`) as { code: string; data: any };
+    if (results.code === '0') { return results.data; }
+    return Promise.reject(results);
+  }
+
+  /** {@link https://www.okx.com/docs-v5/en/#rest-api-funding-get-currencies Get currencies} */
+  async getCurrencies(ccy?: string): Promise<any> {
+    ccy = ccy === undefined ? '' : ccy;
+    const results = await this.get(`api/v5/asset/currencies?ccy=${ccy}`) as { code: string; data: any };
+    if (results.code === '0') { return results.data; }
+    return Promise.reject(results);
+  }
 
   // /** {@link https://docs.kucoin.com/futures/#get-order-list Get Order List} */
   // async getOrders(params?: KucoinFuturesGetOrdersRequest): Promise<KucoinFuturesGetOrdersResponse> {

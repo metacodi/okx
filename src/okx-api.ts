@@ -1,5 +1,6 @@
 import axios, { AxiosError, AxiosRequestConfig } from "axios";
 import { createHmac } from 'crypto';
+import { METHODS } from "http";
 
 import { OkxApiOptions, OkxApiResquestOptions, OkxMarketType } from './types/okx.types';
 
@@ -123,7 +124,8 @@ export abstract class OkxApi {
       if (strictValidation && value === undefined) {
         throw new Error('Failed to sign API request due to undefined parameter');
       }
-      const encodedValue = encodeValues ? encodeURIComponent(value) : value;
+      const canEncode = method === 'GET' || method === 'DELETE';
+      const encodedValue = encodeValues && canEncode ? encodeURIComponent(value) : value;
       d[key] = encodedValue;
     });
 

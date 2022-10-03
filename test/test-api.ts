@@ -19,7 +19,7 @@ const testApi = async () => {
     
     console.log('---------------- API TEST ----------------------');
  
-    const isTest = true;
+    const isTest = false;
 
     const options: OkxApiOptions = {
       ...getApiKeys({ isTest}),
@@ -61,14 +61,17 @@ const testApi = async () => {
     
     
     // ---------------------------------------------------------------------------------------------------
-    //  Account (Spot)
+    //  Account 
     // ---------------------------------------------------------------------------------------------------
     
+    // console.log('getAccountOverview() =>', await api.getAccountOverview());
     // api.getAccountOverview().then( (res: any) => {
     //   res.map( (r: any) => { console.log(r.details ); });
     // });
 
+    //  console.log('getPositions() =>', await api.getPositions());
     // api.getPositions().then( (res: any) => {
+    //   console.log(res);
     //   res.map( (r: any) => { console.log(r.details ); });
     // });
 
@@ -78,24 +81,41 @@ const testApi = async () => {
       
     // console.log('setPositionMode() =>', await api.setPositionMode('long_short_mode'));
 
-    console.log('getLeverage() =>', await api.getLeverage('BTC-USDT-SWAP', 'isolated'));
+    // console.log('getLeverage() =>', await api.getLeverage('BTC-USDT-SWAP', 'isolated'));
 
-    console.log('======================================================');
+    // console.log('======================================================');
 
-    console.log('setLeverage() =>', await api.setLeverage('10', 'isolated', { instId: 'BTC-USDT-SWAP' }));
+    // console.log('setLeverage() =>', await api.setLeverage('10', 'isolated', { instId: 'BTC-USDT-SWAP' }));
 
     // console.log('getFeeRates() =>', await api.getFeeRates('SWAP'));
 
 
+    // ---------------------------------------------------------------------------------------------------
+    //  Trade
+    // ---------------------------------------------------------------------------------------------------
+    
+    
+    // console.log('postOrder() =>', await api.postOrder('BTC-USDT-SWAP', 'isolated', 'buy', 'market', 1000, { clOrdId: '010779' }));
+    // console.log('postOrder() =>', await api.postOrder('BTC-USDT-SWAP', 'isolated', 'sell', 'market', 200, { clOrdId: '010777' }));
+    // console.log('cancelOrder() =>', await api.cancelOrder('BTC-USDT-SWAP', { ordId: '497214683267596288' }));
+    // console.log('closePosition() =>', await api.closePosition('BTC-USDT-SWAP', 'isolated'));
+    // console.log('getOrder() =>', await api.getOrder('BTC-USDT-SWAP', { clOrdId: '010777' }));
+    // console.log('getOrders() =>', await api.getOrders());
+    
+    
+    // ---------------------------------------------------------------------------------------------------
+    //  Founding
+    // ---------------------------------------------------------------------------------------------------
+    
+    // console.log('getAssetBalance() =>', await api.getAssetBalance());
+    // console.log('getCurrencies() =>', await api.getCurrencies());
+
+
+
+
+
 
     // Probat fins aqui.
-
-
-
-
-
-
-
 
     // ---------------------------------------------------------------------------------------------------
     //  Websocket (Spot)
@@ -161,7 +181,6 @@ const testApi = async () => {
       //  Account (Spot)
       // ---------------------------------------------------------------------------------------------------
       
-      // console.log('getAccountOverview() =>', await api.getAccountOverview());
       // console.log('getAccountOverview({ currency }) =>', await api.getAccountOverview({ currency: 'BTC' }));
       
       // console.log('getPositions() =>', await api.getPositions());
