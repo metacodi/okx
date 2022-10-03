@@ -78,10 +78,11 @@ const testApi = async () => {
       
     // console.log('setPositionMode() =>', await api.setPositionMode('long_short_mode'));
 
-    // console.log('getLeverage() =>', await api.getLeverage('BTC-USD-SWAP', 'isolated'));
+    console.log('getLeverage() =>', await api.getLeverage('BTC-USDT-SWAP', 'isolated'));
 
-    /** No logro que me funcioni */
-    console.log('setLeverage() =>', await api.setLeverage('5', 'isolated', { instId: 'BTC-USD-SWAP' }));
+    console.log('======================================================');
+
+    console.log('setLeverage() =>', await api.setLeverage('10', 'isolated', { instId: 'BTC-USDT-SWAP' }));
 
     // console.log('getFeeRates() =>', await api.getFeeRates('SWAP'));
 

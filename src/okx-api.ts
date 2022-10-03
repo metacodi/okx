@@ -81,7 +81,7 @@ export abstract class OkxApi {
       method,
       // url: 'https://' + [baseUrl, endpoint].join('/'),
       headers: { ...headers as any},
-      timeout: 1000 * 60 * 5, // 5 min.
+      // timeout: 1000 * 60 * 5, // 5 min.
     };
 
     const { body, query } = this.resolveData(method, params || {});
@@ -93,6 +93,7 @@ export abstract class OkxApi {
 
     if (method === 'POST' || method === 'PUT') {
       config.headers['Content-Type'] = 'application/json' ;
+      config.headers['Accept'] = 'application/json' ;
       config.data = body;
     }1
 
@@ -143,14 +144,15 @@ export abstract class OkxApi {
   protected async getAuthHeaders(method: string, endpoint: string, params: any) {
     const { apiKey, apiSecret, apiPassphrase } = this;
     // const { authVersion } = getConfig();
+    
     const timestamp = new Date().toISOString();
-    // const message = timestamp + method.toUpperCase() + endpoint + data;
-    const data = (method === 'GET' || method === 'DELETE') ? this.formatQuery(params) : JSON.stringify(params).slice(1, -1);
+    const mParams = String(JSON.stringify(params)).slice(1, -1);
+    const formatedParams = String(mParams).replace(/\\/g, '');
+    const data = (method === 'GET' || method === 'DELETE') ? this.formatQuery(params) : formatedParams;
     const message = timestamp + method + endpoint + data;
     // console.log('message =>', message);
     const signature = await this.signMessage(message, apiSecret);
     const headers: { [header: string]: number | string } = {
-      // 'User-Agent': `KuCoin-Node-SDK/${version}`,
       'OK-ACCESS-KEY': apiKey,
       'OK-ACCESS-SIGN': signature,
       'OK-ACCESS-TIMESTAMP': timestamp,
