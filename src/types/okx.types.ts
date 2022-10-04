@@ -25,7 +25,7 @@ export interface OkxApiOptions {
 }
 
 
-export type WsConnectionState = 'initial' | 'connecting' | 'connected' | 'reconnecting' | 'closing';
+export type WsConnectionState = 'initial' | 'connecting' | 'connected' | 'reconnecting' | 'closing' | 'login';
 
 export type WsStreamType = 'user' | 'market';
 

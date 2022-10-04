@@ -1,6 +1,7 @@
 import WebSocket from 'isomorphic-ws';
 import EventEmitter from 'events';
 import { Subject, interval, timer, Subscription } from 'rxjs';
+import { createHmac } from 'crypto';
 
 import { OkxApi } from './okx-api';
 import { OkxApiOptions, OkxApiResquestOptions, OkxMarketType, OkxSubscription, OkxWebsocketOptions, WsConnectionState, WsStreamType } from './types/okx.types';
@@ -84,7 +85,7 @@ export class OkxWebsocket extends EventEmitter {
     // TODO: Throw error if !wsInfo.
     const { pingInterval, pongTimeout, isTest } = this.options;
 
-    const url = !isTest ? `wss://ws.okx.com:8443/ws/v5/${wsType}`: `wss://wspap.okx.com:8443/ws/v5/${wsType}?brokerId=215489475109851136`;
+    const url = !isTest ? `wss://ws.okx.com:8443/ws/v5/${wsType}` : `wss://wspap.okx.com:8443/ws/v5/${wsType}?brokerId=215489475109851136`;
 
     // Ajustem els paràmetres segons el nou servidor.
     this.options.pingInterval = pingInterval || this.defaultOptions.pingInterval;
@@ -109,25 +110,46 @@ export class OkxWebsocket extends EventEmitter {
 
   }
 
-  protected async login(){
+  protected async login() {
     const { apiKey, apiSecret, apiPassphrase } = this;
-    const timestamp = new Date().toISOString();
-    const message = timestamp +'GET'+'/users/self/verify';
+    // const timestamp = new Date().toISOString();
+    const timestamp = Date.now() / 1000;
+    const message = timestamp + 'GET' + '/users/self/verify';
     this.loggedIn = false;
-    // console.log('message =>', message);
-    const signature = await this.api.signMessage(message, apiSecret);
-    this.ws.send(JSON.stringify({
+    console.log('message =>', message);
+    console.log('apiSecret =>', apiSecret);
+    const signature = await this.signMessage(message, apiSecret);
+    const data = {
       op: 'login',
       args: [{
-        apiKey: this.apiKey,
-        passphrase: this.apiPassphrase,
+        apiKey,
+        passphrase: apiPassphrase,
         timestamp,
-        signature
+        sign: signature
       }]
-    }));
+    }
+    console.log('login => data:', data);
+    this.ws.send(JSON.stringify(data));
 
-    this.on('login', () => this.loggedIn = true);
+    this.on('login', () => { this.loggedIn = true; });
   }
+
+
+  async signMessage(message: string, secret: string): Promise<string> {
+    // Si és possible, fem servir la funció de crypto.
+    if (typeof createHmac === 'function') {
+      return createHmac('sha256', secret).update(message).digest('base64');
+    }
+    // Si no s'ha pogut importar la funció en entorn browser, li donem suport.
+    // const encoder = new TextEncoder();
+    // const keyData = encoder.encode(secret);
+    // const algorithm = {name: 'HMAC', hash: {name: 'SHA-256'}};
+    // const extractable = false;
+    // const keyUsages: KeyUsage[] = ['sign'];
+    // const key = await window.crypto.subtle.importKey('raw', keyData, algorithm, extractable, keyUsages);
+    // const signature = await window.crypto.subtle.sign('HMAC', key, encoder.encode(message));
+    // return Buffer.from(signature).toString('base64');
+  };
 
   reconnect() {
     if (this.status === 'reconnecting') { return; }
@@ -174,13 +196,16 @@ export class OkxWebsocket extends EventEmitter {
 
     }
     this.status = 'connected';
+    if (wsType === 'private') { 
+      this.status = 'login'; 
+      await this.login(); 
+    }
     // Iniciem la comunicació ping-pong.
     if (this.pingTimer) { this.pingTimer.unsubscribe(); }
     this.pingTimer = interval(this.pingInterval).subscribe(() => this.ping());
     // Ens logagem si es necessari
-    if (wsType === 'private') { await this.login(); }
     // Establim les subscripcions dels topics.
-    this.respawnTopicSubscriptions();
+    if (this.status === 'connected' )this.respawnTopicSubscriptions();
   }
 
 
@@ -209,7 +234,7 @@ export class OkxWebsocket extends EventEmitter {
     console.log(this.wsId, `=> Sending ping...`);
     try {
       if (this.pongTimer) { this.pongTimer.unsubscribe(); }
-      
+
       if (typeof this.ws.ping === 'function') {
         this.pongTimer = timer(this.pongTimeout).subscribe(() => {
           console.log(this.wsId, `=> Pong timeout - closing socket to reconnect`);
@@ -255,11 +280,24 @@ export class OkxWebsocket extends EventEmitter {
   protected onWsMessage(event: WebSocket.MessageEvent) {
     const data = this.parseWsMessage(event);
     this.emit('message', data);
-    console.log(data);
+    // console.log(data);
     switch (this.discoverEventType(data)) {
-      case 'welcome':
-        this.connectId = data.id;
-        console.log(this.wsId, '=> connectId:', this.connectId);
+      case 'login':
+        this.status = 'connected';
+        this.respawnTopicSubscriptions();
+        break;
+      case 'accountUpdate':
+        console.log(this.wsId, '=> data:', data.data[0].details);
+        break;
+      case 'positionsUpdate':
+        console.log(this.wsId, '=> data:', data.data);
+        break;
+      case 'balancePositioUpdate':
+        console.log(this.wsId, '=> balData:', data.data[0].balData);
+        console.log(this.wsId, '=> posData:', data.data[0].posData);
+        break;
+      case 'orderUpdate':
+        console.log(this.wsId, '=> data:', data.data);
         break;
       case 'symbolTicker':
         this.emitTopicEvent(data);
@@ -284,13 +322,18 @@ export class OkxWebsocket extends EventEmitter {
   protected discoverEventType(data: any): any {
     const obj = Array.isArray(data) ? (data.length ? data[0] : undefined) : data;
     if (typeof obj === 'object') {
-      if (Object.keys(obj).length === 2 && obj.hasOwnProperty('id') && obj.hasOwnProperty('type')) {
-        return obj.type;
+      if (Object.keys(obj).length === 2 && obj.hasOwnProperty('event') && obj.hasOwnProperty('code')) {
+        return obj.event;
+      } else if (obj.hasOwnProperty('event')) {
+        return obj.event;
       } else if (obj.hasOwnProperty('arg')) {
         const { channel } = obj.arg;
-        if (channel === `tickers` ) { return 'symbolTicker'; }
-        else if (channel) { return 'symbolTickerV2'; }
-        // else if (topic.startsWith(`/contractMarket/tradeOrders`)) { return 'orderUpdate'; }
+        if (channel === `tickers`) { return 'symbolTicker'; }
+        else if (channel.startsWith(`candle`)) { return 'candleTicker'; }
+        else if (channel === `account`) { return 'accountUpdate'; }
+        else if (channel === `positions`) { return 'positionsUpdate'; }
+        else if (channel === `balance_and_position`) { return 'balancePositioUpdate'; }
+        else if (channel === `orders`) { return 'orderUpdate'; }
         // else if (topic === '/contractAccount/wallet' && subject === 'availableBalance.change') { return 'balanceUpdate'; }
         // else if (topic === '/contractAccount/wallet' && subject === 'withdrawHold.change') { return 'withdrawHold'; }
         // else if (topic.startsWith('/contract/position') && subject === 'position.change') { return 'positionChange'; }
@@ -301,8 +344,8 @@ export class OkxWebsocket extends EventEmitter {
     return undefined;
   }
 
-   // ---------------------------------------------------------------------------------------------------
-  //  Market (public)
+  // ---------------------------------------------------------------------------------------------------
+  //  Public channel
   // ---------------------------------------------------------------------------------------------------
 
   /** {@link https://www.okx.com/docs-v5/en/#websocket-api-public-channel-tickers-channel Tickers channel} */
@@ -319,6 +362,51 @@ export class OkxWebsocket extends EventEmitter {
     return this.registerTopicSubscription(topic, subject, { channel, instId: symbol });
   }
 
+
+  // ---------------------------------------------------------------------------------------------------
+  //  Private channel
+  // ---------------------------------------------------------------------------------------------------
+
+
+  /** {@link https://www.okx.com/docs-v5/en/#websocket-api-private-channel-account-channel Account channel} */
+  accountUpdate(args?: any): Subject<any> {
+    const topic = 'account';
+    let params: any = { channel: topic };
+    params = args === undefined ? params : { ...params, ...args};
+    return this.registerTopicSubscription(topic, '', params);
+  }
+  
+  /** {@link https://www.okx.com/docs-v5/en/#websocket-api-private-channel-positions-channel Positions channel} */
+  positionsUpdate(args?: any): Subject<any> {
+    const topic = 'positions';
+    let params: any = { channel: topic };
+    params = args === undefined ? params : { ...params, ...args};
+    return this.registerTopicSubscription(topic, '', params);
+  }
+  
+  /** {@link https://www.okx.com/docs-v5/en/#websocket-api-private-channel-balance-and-position-channel Balance and position channel} */
+  balancePositioUpdate(args?: any): Subject<any> {
+    const topic = 'balance_and_position';
+    let params: any = { channel: topic };
+    params = args === undefined ? params : { ...params, ...args};
+    return this.registerTopicSubscription(topic, '', params);
+  }
+
+  /** {@link https://www.okx.com/docs-v5/en/#websocket-api-private-channel-order-channel Order channel} */
+  orderUpdate(args?: any): Subject<any> {
+    const topic = 'orders';
+    let params: any = { channel: topic };
+    params = args === undefined ? params : { ...params, ...args};
+    return this.registerTopicSubscription(topic, '', params);
+  }
+
+  /** {@link https://www.okx.com/docs-v5/en/#websocket-api-private-channel-position-risk-warning Position risk warning} */
+  positionRiskWarnig(args?: any): Subject<any> {
+    const topic = 'liquidation-warning';
+    let params: any = { channel: topic };
+    params = args === undefined ? params : { ...params, ...args};
+    return this.registerTopicSubscription(topic, '', params);
+  }
 
   // ---------------------------------------------------------------------------------------------------
   //  Topics subscriptions
@@ -346,7 +434,7 @@ export class OkxWebsocket extends EventEmitter {
       const hasSubscriptions = !this.isSubjectUnobserved(stored);
       if (hasSubscriptions) {
         const args = this.argumets[topicKey];
-        this.subscribeTopic( args);
+        this.subscribeTopic(args);
       } else {
         if (stored) { stored.complete(); }
         delete this.emitters[topicKey];
@@ -379,7 +467,7 @@ export class OkxWebsocket extends EventEmitter {
 
   protected subscribeTopic(args: any) {
     // const channel = { channel, instId };
-    const data: OkxSubscription = { op: "subscribe", args: [args]  };
+    const data: OkxSubscription = { op: "subscribe", args: [args] };
     // if (instId) { data.instId = instId; }
     console.log(this.wsId, '=> subscribing...', JSON.stringify(data));
     this.ws.send(JSON.stringify(data), error => error ? this.onWsError(error as any) : undefined);
