@@ -190,7 +190,7 @@ export abstract class OkxApi {
   };
 
 
-  protected async signMessage(message: string, secret: string): Promise<string> {
+  async signMessage(message: string, secret: string): Promise<string> {
     // Si és possible, fem servir la funció de crypto.
     if (typeof createHmac === 'function') {
       return createHmac('sha256', secret).update(message).digest('base64');

@@ -25,6 +25,32 @@ export interface OkxApiOptions {
 }
 
 
+export type WsConnectionState = 'initial' | 'connecting' | 'connected' | 'reconnecting' | 'closing';
+
+export type WsStreamType = 'user' | 'market';
+
+export interface OkxWebsocketOptions {
+  /** Market associat. S'utilitza per discernir les variants de futurs: 'usdm' | 'coinm'. */
+  market: OkxMarketType;
+  /** Indica si l'stream és d'usuari o de mercat. */
+  streamType: WsStreamType;
+  /** Public user api key. */
+  apiKey?: string;
+  /** Private user api key. */
+  apiSecret?: string;
+  /** User api passphrase. */
+  apiPassphrase?: string;
+  /** Indica si l'api està en mode test o en real. */
+  isTest?: boolean,
+  /** Indica el periode de delay abans de tornar a connectar. */
+  reconnectPeriod?: number;
+  /** Temps en milisegons per l'interval qua ha de manetenir viva la connexió. */
+  pingInterval?: number;
+  /** Temps en milisegons pel timeout si no hi ha la resposta per part del servidor. */
+  pongTimeout?: number;
+}
+
+
 /**
  * ```typescript
  * { params?: any; headers?: { [key: string]: string | number }; isPublic?: boolean; createSignature?: boolean; baseUrlOverride?: string }
@@ -80,3 +106,18 @@ export type OkxMarketType = 'SPOT' | 'FUTURES' | 'MARGIN' | 'SWAP'| 'OPTION';
 // export type OkxOrderExecutionType = 'NEW' | 'CANCELED' | 'REJECTED' | 'TRADE' | 'EXPIRED';
 
 // export type OkxTradeType = 'TRADE' | 'MARGIN_TRADE';
+
+
+// ---------------------------------------------------------------------------------------------------
+//  Topic subscription
+// ---------------------------------------------------------------------------------------------------
+
+export interface OkxSubscription {
+  
+  op: 'subscribe' | 'unsubscribe';
+  /** Channel name ",".
+   * Ex: `'candle1Y candle6M candle3M candle1M candle1W'`.
+   */
+   args: any[];
+  
+}

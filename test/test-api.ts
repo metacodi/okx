@@ -19,7 +19,7 @@ const testApi = async () => {
     
     console.log('---------------- API TEST ----------------------');
  
-    const isTest = false;
+    const isTest = true;
 
     const options: OkxApiOptions = {
       ...getApiKeys({ isTest}),
