@@ -3,22 +3,23 @@ import EventEmitter from 'events';
 import { Subject, interval, timer, Subscription } from 'rxjs';
 import { createHmac } from 'crypto';
 
-import { MarketType, SymbolType, MarketPrice, WsStreamType, WebsocketOptions, WsConnectionState, KlinesRequest, MarketKline, KlineIntervalType } from '@metacodi/abstract-exchange';
+import { MarketType, SymbolType, MarketPrice, KlinesRequest, MarketKline, KlineIntervalType, OrderEvent, CoinType } from '@metacodi/abstract-exchange';
+import { ExchangeWebsocket, WebsocketOptions, WsStreamType, WsConnectionState, WsAccountUpdate, WsBalancePositionUpdate } from '@metacodi/abstract-exchange';
 
 import { OkxApi } from './okx-api';
 import { OkxMarketType, OkxWsSubscription, OkxWsSubscriptionArguments, OkxWsChannelType } from './types/okx.types';
 import { formatMarketType, formatWsStreamType, parseSymbol, formatSymbol, parsePriceTickerEvent, parseKlineTickerEvent } from './types/okx-parsers';
 
 
-export class OkxWebsocket extends EventEmitter {
+export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
+  /** Estat de la connexió. */
+  status: WsConnectionState = 'initial';
   /** Opcions de configuració. */
   protected options: WebsocketOptions;
   /** Referència a la instància del websocket subjacent. */
   protected ws: WebSocket
   /** Referència a la instància del client API. */
   protected api: OkxApi;
-  /** Estat de la connexió. */
-  protected status: WsConnectionState = 'initial';
   /** Subscripció al interval que envia un ping al servidor per mantenir viva la connexió.  */
   protected pingTimer?: Subscription;
   /** Subscriptor al timer que controla la resposta del servidor. */
@@ -26,10 +27,10 @@ export class OkxWebsocket extends EventEmitter {
   /** Identificador de connexió rebut del servidor websocket. */
   protected connectId?: string;
   /** Emisors de missatges. */
-  protected emitters: { [WsStreamEmitterType: string]: Subject<any> } = {};
+  protected emitters: { [channelKey: string]: Subject<any> } = {};
   /** Identificador de login del servidor websocket. */
   protected loggedIn: boolean;
-  /** Arguments. */
+  /** Arguments per tornar a subscriure's al canal (respawn). */
   protected argumets: { [key: string]: any } = {};
 
   constructor(
@@ -45,9 +46,9 @@ export class OkxWebsocket extends EventEmitter {
   //  options
   // ---------------------------------------------------------------------------------------------------
 
-  get market(): MarketType { return this.options?.market; }
-
   get okxMarket(): OkxMarketType { return formatMarketType(this.market); }
+
+  get market(): MarketType { return this.options?.market; }
 
   get streamType(): WsStreamType { return this.options?.streamType; }
 
@@ -201,7 +202,7 @@ export class OkxWebsocket extends EventEmitter {
     if (this.pingTimer) { this.pingTimer.unsubscribe(); }
     this.pingTimer = interval(this.pingInterval).subscribe(() => this.ping());
     // Establim les subscripcions dels topics.
-    this.respawnTopicSubscriptions();
+    this.respawnChannelSubscriptions();
   }
 
   protected onWsClose(event: WebSocket.CloseEvent) {
@@ -314,7 +315,6 @@ export class OkxWebsocket extends EventEmitter {
     return event?.data ? JSON.parse(event.data) : event;
   }
 
-
   protected discoverEventType(data: any): any {
     const obj = Array.isArray(data) ? (data.length ? data[0] : undefined) : data;
     if (typeof obj === 'object') {
@@ -336,6 +336,7 @@ export class OkxWebsocket extends EventEmitter {
     return undefined;
   }
 
+
   // ---------------------------------------------------------------------------------------------------
   //  Public channel
   // ---------------------------------------------------------------------------------------------------
@@ -344,20 +345,14 @@ export class OkxWebsocket extends EventEmitter {
   priceTicker(symbol: SymbolType): Subject<MarketPrice> {
     const channel: OkxWsChannelType = `tickers`;
     const instId = `${formatSymbol(symbol)}-${this.okxMarket}`;
-    return this.registerTopicSubscription({ channel, instId });
+    return this.registerChannelSubscription({ channel, instId });
   }
-
-  // /** {@link https://www.okx.com/docs-v5/en/#websocket-api-public-channel-tickers-channel Tickers channel} */
-  // protected emitPriceTickerEvent(obj: OkxWsSubscriptionArguments & { data: any[] }): void {
-  //   console.log('emitPriceTickerEvent => ', obj);
-  //   parsePriceTickerEvent
-  // }
 
   /** {@link https://www.okx.com/docs-v5/en/#websocket-api-public-channel-candlesticks-channel Candlesticks channel} */
   klineTicker(symbol: SymbolType, interval: KlineIntervalType): Subject<MarketKline> {
     const channel: OkxWsChannelType = `candle${interval}`;
     const instId = `${formatSymbol(symbol)}-${this.okxMarket}`;
-    return this.registerTopicSubscription({ channel, instId });
+    return this.registerChannelSubscription({ channel, instId });
   }
 
 
@@ -365,74 +360,79 @@ export class OkxWebsocket extends EventEmitter {
   //  Private channel
   // ---------------------------------------------------------------------------------------------------
 
-
   /** {@link https://www.okx.com/docs-v5/en/#websocket-api-private-channel-account-channel Account channel} */
-  accountUpdate(args?: { [key: string]: any }): Subject<any> {
+  accountUpdate(asset?: CoinType): Subject<WsAccountUpdate> {
     const channel: OkxWsChannelType = 'account';
-    return this.registerTopicSubscription({ channel, ...args });
+    const ccy = asset ? { ccy: asset } : undefined;
+    return this.registerChannelSubscription({ channel, ...ccy });
   }
   
-  /** {@link https://www.okx.com/docs-v5/en/#websocket-api-private-channel-positions-channel Positions channel} */
-  positionsUpdate(args?: { [key: string]: any }): Subject<any> {
-    const channel: OkxWsChannelType = 'positions';
-    return this.registerTopicSubscription({ channel, ...args });
-  }
+  // /** {@link https://www.okx.com/docs-v5/en/#websocket-api-private-channel-positions-channel Positions channel} */
+  // positionsUpdate(symbol?: SymbolType): Subject<any> {
+  //   const channel: OkxWsChannelType = 'positions';
+  //   const instType = this.okxMarket;
+  //   const uly = symbol ? { uly: formatSymbol(symbol) } : undefined;
+  //   return this.registerChannelSubscription({ channel, instType, ...uly });
+  // }
   
   /** {@link https://www.okx.com/docs-v5/en/#websocket-api-private-channel-balance-and-position-channel Balance and position channel} */
-  balancePositioUpdate(args?: { [key: string]: any }): Subject<any> {
+  balancePositionUpdate(): Subject<WsBalancePositionUpdate> {
     const channel: OkxWsChannelType = 'balance_and_position';
-    return this.registerTopicSubscription({ channel, ...args });
+    return this.registerChannelSubscription({ channel });
   }
 
   /** {@link https://www.okx.com/docs-v5/en/#websocket-api-private-channel-order-channel Order channel} */
-  orderUpdate(args?: { [key: string]: any }): Subject<any> {
+  orderUpdate(symbol?: SymbolType): Subject<OrderEvent> {
     const channel: OkxWsChannelType = 'orders';
-    return this.registerTopicSubscription({ channel, ...args });
+    const instType = this.okxMarket;
+    const uly = symbol ? { uly: formatSymbol(symbol) } : undefined;
+    return this.registerChannelSubscription({ channel, instType, ...uly });
   }
 
-  /** {@link https://www.okx.com/docs-v5/en/#websocket-api-private-channel-position-risk-warning Position risk warning} */
-  positionRiskWarnig(args?: { [key: string]: any }): Subject<any> {
-    const channel: OkxWsChannelType = 'liquidation-warning';
-    return this.registerTopicSubscription({ channel, ...args });
-  }
+  // /** {@link https://www.okx.com/docs-v5/en/#websocket-api-private-channel-position-risk-warning Position risk warning} */
+  // positionRiskWarnig(symbol?: SymbolType): Subject<any> {
+  //   const channel: OkxWsChannelType = 'liquidation-warning';
+  //   const instType = this.okxMarket;
+  //   const uly = symbol ? { uly: formatSymbol(symbol) } : undefined;
+  //   return this.registerChannelSubscription({ channel, instType, ...uly });
+  // }
+
 
   // ---------------------------------------------------------------------------------------------------
-  //  Topics subscriptions
+  //  Channel subscriptions
   // ---------------------------------------------------------------------------------------------------
 
-  private subscriptionId = 0;
-
-  protected registerTopicSubscription(args: OkxWsSubscriptionArguments) {
-    const topicKey = Object.keys(args).map(key => args[key]).join('#');
-    const stored = this.emitters[topicKey];
+  protected registerChannelSubscription(args: OkxWsSubscriptionArguments) {
+    const channelKey = Object.keys(args).map(key => args[key]).join('#');
+    const stored = this.emitters[channelKey];
     if (stored) { return stored; }
     const created = new Subject<any>();
-    this.emitters[topicKey] = created;
-    this.argumets[topicKey] = args;
-    console.log('Register new channel =>', topicKey);
-    if (this.status === 'connected') { this.subscribeTopic(args); }
+    this.emitters[channelKey] = created;
+    this.argumets[channelKey] = args;
+    // console.log('Register new channel =>', channelKey);
+    if (this.status === 'connected') { this.subscribeChannel(args); }
     return created;
   }
 
-  protected respawnTopicSubscriptions() {
+  protected respawnChannelSubscriptions() {
     const topics: string[] = [];
-    Object.keys(this.emitters).map(topicKey => {
-      const stored = this.emitters[topicKey];
+    Object.keys(this.emitters).map(channelKey => {
+      const stored = this.emitters[channelKey];
       const hasSubscriptions = !this.isSubjectUnobserved(stored);
       if (hasSubscriptions) {
-        const args = this.argumets[topicKey];
-        this.subscribeTopic(args);
+        const args = this.argumets[channelKey];
+        this.subscribeChannel(args);
       } else {
         if (stored) { stored.complete(); }
-        delete this.emitters[topicKey];
+        delete this.emitters[channelKey];
       }
     });
   }
 
   protected emitChannelEvent(obj: { arg: OkxWsSubscriptionArguments } & { data: any[] }) {
     const args = obj.arg;
-    const topicKey = Object.keys(args).map(key => args[key]).join('#');
-    const stored = this.emitters[topicKey];
+    const channelKey = Object.keys(args).map(key => args[key]).join('#');
+    const stored = this.emitters[channelKey];
     if (!stored) { return; }
     const hasSubscriptions = !this.isSubjectUnobserved(stored);
     if (hasSubscriptions) {
@@ -440,9 +440,9 @@ export class OkxWebsocket extends EventEmitter {
       const value = parser ? parser(obj) : obj;
       stored.next(value);
     } else {
-      this.unsubscribeTopic(args);
+      this.unsubscribeChannel(args);
       if (stored) { stored.complete(); }
-      delete this.emitters[topicKey];
+      delete this.emitters[channelKey];
     }
   }
 
@@ -459,17 +459,15 @@ export class OkxWebsocket extends EventEmitter {
     return !emitter || emitter.closed || !emitter.observers?.length;
   }
 
-  protected subscribeTopic(args: OkxWsSubscriptionArguments) {
-    // const channel = { channel, instId };
+  protected subscribeChannel(args: OkxWsSubscriptionArguments) {
     const data: OkxWsSubscription = { op: "subscribe", args: [args] };
-    // if (instId) { data.instId = instId; }
     console.log(this.wsId, '=> subscribing...', JSON.stringify(data));
     this.ws.send(JSON.stringify(data), error => error ? this.onWsError(error as any) : undefined);
   }
 
-  protected unsubscribeTopic(args: OkxWsSubscriptionArguments) {
+  protected unsubscribeChannel(args: OkxWsSubscriptionArguments) {
     console.log(this.wsId, '=> unsubscribing...', args);
-    const data: any = { op: "unsubscribe", args:[args] };
+    const data: any = { op: "unsubscribe", args: [args] };
     this.ws.send(JSON.stringify(data), error => error ? this.onWsError(error as any) : undefined);
   }
 

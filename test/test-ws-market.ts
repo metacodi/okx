@@ -50,7 +50,6 @@ const testMarketWs = async () => {
 
     // const tickerBTCUSDTSWAP = ws.priceTicker('BTC_USDT').subscribe(data => console.log('priceTicker =>', data));
     const klines = ws.klineTicker('BTC_USDT', '1m').subscribe(data => console.log('klines =>', data));
-    // const klines = ws.klineTicker('BTC-USDT-SWAP', 'candle1m').subscribe(data => console.log('klines =>', data));
     
     // setTimeout(() => { console.log('Test => Unsubscribe BTC-USDT-SWAP ticker'); tickerBTCUSDTSWAP.unsubscribe(); }, 5000);
     // setTimeout(() => { console.log('Test => Unsubscribe XBTUSDM tickerV2'); tickerV2XBTUSDM.unsubscribe(); }, 2500);
