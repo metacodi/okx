@@ -25,7 +25,7 @@ const testMarketWs = async () => {
       streamType: 'user',
       market: market,
       isTest,
-      ...getApiKeys({ isTest}),
+      ...getApiKeys({ isTest}), // Activar per privades
     };
 
     const ws = new OkxWebsocket(options);
