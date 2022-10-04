@@ -3,12 +3,16 @@ import EventEmitter from 'events';
 import { Subject, interval, timer, Subscription } from 'rxjs';
 import { createHmac } from 'crypto';
 
+import { MarketType, SymbolType, MarketPrice, WsStreamType, WebsocketOptions, WsConnectionState, KlinesRequest, MarketKline, KlineIntervalType } from '@metacodi/abstract-exchange';
+
 import { OkxApi } from './okx-api';
-import { OkxApiOptions, OkxApiResquestOptions, OkxMarketType, OkxSubscription, OkxWebsocketOptions, WsConnectionState, WsStreamType } from './types/okx.types';
+import { OkxMarketType, OkxWsSubscription, OkxWsSubscriptionArguments, OkxWsChannelType } from './types/okx.types';
+import { formatMarketType, formatWsStreamType, parseSymbol, formatSymbol, parsePriceTickerEvent, parseKlineTickerEvent } from './types/okx-parsers';
+
 
 export class OkxWebsocket extends EventEmitter {
   /** Opcions de configuració. */
-  protected options: OkxWebsocketOptions;
+  protected options: WebsocketOptions;
   /** Referència a la instància del websocket subjacent. */
   protected ws: WebSocket
   /** Referència a la instància del client API. */
@@ -29,7 +33,7 @@ export class OkxWebsocket extends EventEmitter {
   protected argumets: { [key: string]: any } = {};
 
   constructor(
-    options: OkxWebsocketOptions,
+    options: WebsocketOptions,
   ) {
     super();
     this.options = { ...this.defaultOptions, ...options };
@@ -41,7 +45,9 @@ export class OkxWebsocket extends EventEmitter {
   //  options
   // ---------------------------------------------------------------------------------------------------
 
-  get market(): OkxMarketType { return this.options?.market; }
+  get market(): MarketType { return this.options?.market; }
+
+  get okxMarket(): OkxMarketType { return formatMarketType(this.market); }
 
   get streamType(): WsStreamType { return this.options?.streamType; }
 
@@ -59,7 +65,7 @@ export class OkxWebsocket extends EventEmitter {
 
   get pongTimeout(): number { return this.options?.pongTimeout; }
 
-  get defaultOptions(): Partial<OkxWebsocketOptions> {
+  get defaultOptions(): Partial<WebsocketOptions> {
     return {
       isTest: true,
       reconnectPeriod: 5 * 1000,
@@ -110,45 +116,20 @@ export class OkxWebsocket extends EventEmitter {
 
   }
 
-  protected async login() {
-    const { apiKey, apiSecret, apiPassphrase } = this;
-    // const timestamp = new Date().toISOString();
-    const timestamp = Date.now() / 1000;
-    const message = timestamp + 'GET' + '/users/self/verify';
-    this.loggedIn = false;
-    console.log('message =>', message);
-    console.log('apiSecret =>', apiSecret);
-    const signature = await this.signMessage(message, apiSecret);
-    const data = {
-      op: 'login',
-      args: [{
-        apiKey,
-        passphrase: apiPassphrase,
-        timestamp,
-        sign: signature
-      }]
-    }
-    console.log('login => data:', data);
-    this.ws.send(JSON.stringify(data));
-
-    this.on('login', () => { this.loggedIn = true; });
-  }
-
-
   async signMessage(message: string, secret: string): Promise<string> {
     // Si és possible, fem servir la funció de crypto.
     if (typeof createHmac === 'function') {
       return createHmac('sha256', secret).update(message).digest('base64');
     }
     // Si no s'ha pogut importar la funció en entorn browser, li donem suport.
-    // const encoder = new TextEncoder();
-    // const keyData = encoder.encode(secret);
-    // const algorithm = {name: 'HMAC', hash: {name: 'SHA-256'}};
-    // const extractable = false;
-    // const keyUsages: KeyUsage[] = ['sign'];
-    // const key = await window.crypto.subtle.importKey('raw', keyData, algorithm, extractable, keyUsages);
-    // const signature = await window.crypto.subtle.sign('HMAC', key, encoder.encode(message));
-    // return Buffer.from(signature).toString('base64');
+    const encoder = new TextEncoder();
+    const keyData = encoder.encode(secret);
+    const algorithm = {name: 'HMAC', hash: {name: 'SHA-256'}};
+    const extractable = false;
+    const keyUsages: KeyUsage[] = ['sign'];
+    const key = await window.crypto.subtle.importKey('raw', keyData, algorithm, extractable, keyUsages);
+    const signature = await window.crypto.subtle.sign('HMAC', key, encoder.encode(message));
+    return Buffer.from(signature).toString('base64');
   };
 
   reconnect() {
@@ -195,19 +176,33 @@ export class OkxWebsocket extends EventEmitter {
       this.emit('open', { event });
 
     }
-    this.status = 'connected';
-    if (wsType === 'private') { 
-      this.status = 'login'; 
-      await this.login(); 
+    if (wsType === 'private') {
+      await this.login();
+    } else {
+      this.onConnected();
     }
+  }
+
+  protected async login() {
+    const { apiKey, apiSecret, apiPassphrase } = this;
+    this.status = 'login';
+    this.loggedIn = false;
+    const timestamp = Date.now() / 1000;
+    const message = timestamp + 'GET' + '/users/self/verify';
+    const signature = await this.signMessage(message, apiSecret);
+    const data = { op: 'login', args: [{ apiKey, passphrase: apiPassphrase, timestamp, sign: signature }] };
+    console.log(`${this.wsId} =>`, data);
+    this.ws.send(JSON.stringify(data));
+  }
+
+  protected onConnected() {
+    this.status = 'connected';
     // Iniciem la comunicació ping-pong.
     if (this.pingTimer) { this.pingTimer.unsubscribe(); }
     this.pingTimer = interval(this.pingInterval).subscribe(() => this.ping());
-    // Ens logagem si es necessari
     // Establim les subscripcions dels topics.
-    if (this.status === 'connected' )this.respawnTopicSubscriptions();
+    this.respawnTopicSubscriptions();
   }
-
 
   protected onWsClose(event: WebSocket.CloseEvent) {
     console.log(this.wsId, '=> closed');
@@ -283,8 +278,12 @@ export class OkxWebsocket extends EventEmitter {
     // console.log(data);
     switch (this.discoverEventType(data)) {
       case 'login':
-        this.status = 'connected';
-        this.respawnTopicSubscriptions();
+        this.loggedIn = true;
+        this.onConnected();
+        break;
+      case 'tickers':
+      case 'klines':
+        this.emitChannelEvent(data);
         break;
       case 'accountUpdate':
         console.log(this.wsId, '=> data:', data.data[0].details);
@@ -298,9 +297,6 @@ export class OkxWebsocket extends EventEmitter {
         break;
       case 'orderUpdate':
         console.log(this.wsId, '=> data:', data.data);
-        break;
-      case 'symbolTicker':
-        this.emitTopicEvent(data);
         break;
       default:
         console.log('onWsMessage =>', data);
@@ -325,16 +321,16 @@ export class OkxWebsocket extends EventEmitter {
       if (Object.keys(obj).length === 2 && obj.hasOwnProperty('event') && obj.hasOwnProperty('code')) {
         return obj.event;
       } else if (obj.hasOwnProperty('event')) {
+        // Ex: event = 'login' | 'subscribe' | 'unsubscribe'
         return obj.event;
       } else if (obj.hasOwnProperty('arg')) {
         const { channel } = obj.arg;
-        if (channel === `tickers`) { return 'symbolTicker'; }
-        else if (channel.startsWith(`candle`)) { return 'candleTicker'; }
-        else if (channel === `account`) { return 'accountUpdate'; }
-        else if (channel === `positions`) { return 'positionsUpdate'; }
-        else if (channel === `balance_and_position`) { return 'balancePositioUpdate'; }
-        else if (channel === `orders`) { return 'orderUpdate'; }
-        
+        if (channel === `tickers`) { return 'tickers'; }
+        else if (channel.startsWith(`candle`)) { return 'klines'; }
+        // else if (channel === `account`) { return 'accountUpdate'; }
+        // else if (channel === `positions`) { return 'positionsUpdate'; }
+        // else if (channel === `balance_and_position`) { return 'balancePositioUpdate'; }
+        // else if (channel === `orders`) { return 'orderUpdate'; }
       }
     }
     return undefined;
@@ -345,17 +341,23 @@ export class OkxWebsocket extends EventEmitter {
   // ---------------------------------------------------------------------------------------------------
 
   /** {@link https://www.okx.com/docs-v5/en/#websocket-api-public-channel-tickers-channel Tickers channel} */
-  symbolTicker(symbol: string): Subject<any> {
-    const topic = `tickers`;
-    const subject = symbol;
-    return this.registerTopicSubscription(topic, subject, { channel: topic, instId: symbol });
+  priceTicker(symbol: SymbolType): Subject<MarketPrice> {
+    const channel: OkxWsChannelType = `tickers`;
+    const instId = `${formatSymbol(symbol)}-${this.okxMarket}`;
+    return this.registerTopicSubscription({ channel, instId });
   }
 
-  /** {@link https://www.okx.com/docs-v5/en/#websocket-api-public-channel-tickers-channel Candlesticks channel} */
-  klines(symbol: string, channel: string): Subject<any> {
-    const topic = channel;
-    const subject = symbol;
-    return this.registerTopicSubscription(topic, subject, { channel, instId: symbol });
+  // /** {@link https://www.okx.com/docs-v5/en/#websocket-api-public-channel-tickers-channel Tickers channel} */
+  // protected emitPriceTickerEvent(obj: OkxWsSubscriptionArguments & { data: any[] }): void {
+  //   console.log('emitPriceTickerEvent => ', obj);
+  //   parsePriceTickerEvent
+  // }
+
+  /** {@link https://www.okx.com/docs-v5/en/#websocket-api-public-channel-candlesticks-channel Candlesticks channel} */
+  klineTicker(symbol: SymbolType, interval: KlineIntervalType): Subject<MarketKline> {
+    const channel: OkxWsChannelType = `candle${interval}`;
+    const instId = `${formatSymbol(symbol)}-${this.okxMarket}`;
+    return this.registerTopicSubscription({ channel, instId });
   }
 
 
@@ -365,43 +367,33 @@ export class OkxWebsocket extends EventEmitter {
 
 
   /** {@link https://www.okx.com/docs-v5/en/#websocket-api-private-channel-account-channel Account channel} */
-  accountUpdate(args?: any): Subject<any> {
-    const topic = 'account';
-    let params: any = { channel: topic };
-    params = args === undefined ? params : { ...params, ...args};
-    return this.registerTopicSubscription(topic, '', params);
+  accountUpdate(args?: { [key: string]: any }): Subject<any> {
+    const channel: OkxWsChannelType = 'account';
+    return this.registerTopicSubscription({ channel, ...args });
   }
   
   /** {@link https://www.okx.com/docs-v5/en/#websocket-api-private-channel-positions-channel Positions channel} */
-  positionsUpdate(args?: any): Subject<any> {
-    const topic = 'positions';
-    let params: any = { channel: topic };
-    params = args === undefined ? params : { ...params, ...args};
-    return this.registerTopicSubscription(topic, '', params);
+  positionsUpdate(args?: { [key: string]: any }): Subject<any> {
+    const channel: OkxWsChannelType = 'positions';
+    return this.registerTopicSubscription({ channel, ...args });
   }
   
   /** {@link https://www.okx.com/docs-v5/en/#websocket-api-private-channel-balance-and-position-channel Balance and position channel} */
-  balancePositioUpdate(args?: any): Subject<any> {
-    const topic = 'balance_and_position';
-    let params: any = { channel: topic };
-    params = args === undefined ? params : { ...params, ...args};
-    return this.registerTopicSubscription(topic, '', params);
+  balancePositioUpdate(args?: { [key: string]: any }): Subject<any> {
+    const channel: OkxWsChannelType = 'balance_and_position';
+    return this.registerTopicSubscription({ channel, ...args });
   }
 
   /** {@link https://www.okx.com/docs-v5/en/#websocket-api-private-channel-order-channel Order channel} */
-  orderUpdate(args?: any): Subject<any> {
-    const topic = 'orders';
-    let params: any = { channel: topic };
-    params = args === undefined ? params : { ...params, ...args};
-    return this.registerTopicSubscription(topic, '', params);
+  orderUpdate(args?: { [key: string]: any }): Subject<any> {
+    const channel: OkxWsChannelType = 'orders';
+    return this.registerTopicSubscription({ channel, ...args });
   }
 
   /** {@link https://www.okx.com/docs-v5/en/#websocket-api-private-channel-position-risk-warning Position risk warning} */
-  positionRiskWarnig(args?: any): Subject<any> {
-    const topic = 'liquidation-warning';
-    let params: any = { channel: topic };
-    params = args === undefined ? params : { ...params, ...args};
-    return this.registerTopicSubscription(topic, '', params);
+  positionRiskWarnig(args?: { [key: string]: any }): Subject<any> {
+    const channel: OkxWsChannelType = 'liquidation-warning';
+    return this.registerTopicSubscription({ channel, ...args });
   }
 
   // ---------------------------------------------------------------------------------------------------
@@ -410,14 +402,14 @@ export class OkxWebsocket extends EventEmitter {
 
   private subscriptionId = 0;
 
-  protected registerTopicSubscription(topic: string, subject: string, args: any) {
-    const topicKey = subject ? `${topic}#${subject}` : topic;
+  protected registerTopicSubscription(args: OkxWsSubscriptionArguments) {
+    const topicKey = Object.keys(args).map(key => args[key]).join('#');
     const stored = this.emitters[topicKey];
     if (stored) { return stored; }
     const created = new Subject<any>();
     this.emitters[topicKey] = created;
     this.argumets[topicKey] = args;
-    // console.log('Register new topic =>', topicKey);
+    console.log('Register new channel =>', topicKey);
     if (this.status === 'connected') { this.subscribeTopic(args); }
     return created;
   }
@@ -426,7 +418,7 @@ export class OkxWebsocket extends EventEmitter {
     const topics: string[] = [];
     Object.keys(this.emitters).map(topicKey => {
       const stored = this.emitters[topicKey];
-      const [topic, subject] = topicKey.split('#');
+      // const [channel, subject] = topicKey.split('#');
       const hasSubscriptions = !this.isSubjectUnobserved(stored);
       if (hasSubscriptions) {
         const args = this.argumets[topicKey];
@@ -438,22 +430,29 @@ export class OkxWebsocket extends EventEmitter {
     });
   }
 
-  protected emitTopicEvent(event: any) {
-    if (typeof event !== 'object' || !event.hasOwnProperty('topic')) {
-      throw (`No s'ha pogut interpretar el tipus d'event`);
-    }
-    const topic = event.topic;
-    const subject = event.subject;
-    const topicKey = subject ? `${topic}#${subject}` : topic;
+  protected emitChannelEvent(obj: { arg: OkxWsSubscriptionArguments } & { data: any[] }) {
+    const args = obj.arg;
+    const topicKey = Object.keys(args).map(key => args[key]).join('#');
     const stored = this.emitters[topicKey];
     if (!stored) { return; }
     const hasSubscriptions = !this.isSubjectUnobserved(stored);
     if (hasSubscriptions) {
-      stored.next(event);
+      const parser = this.getChannelParser(args);
+      const value = parser ? parser(obj) : obj;
+      stored.next(value);
     } else {
-      this.unsubscribeTopic(topic, subject);
-      if (stored) { stored.complete(); }
-      delete this.emitters[topicKey];
+      // this.unsubscribeTopic(channel, subject);
+      // if (stored) { stored.complete(); }
+      // delete this.emitters[topicKey];
+    }
+  }
+
+  protected getChannelParser(args: OkxWsSubscriptionArguments) {
+    const channel = args.channel.startsWith('candle') ? 'klines' : args.channel;
+    switch (channel) {
+      case 'tickers': return parsePriceTickerEvent;
+      case 'klines': return parseKlineTickerEvent;
+      default: return undefined;
     }
   }
 
@@ -461,9 +460,9 @@ export class OkxWebsocket extends EventEmitter {
     return !emitter || emitter.closed || !emitter.observers?.length;
   }
 
-  protected subscribeTopic(args: any) {
+  protected subscribeTopic(args: OkxWsSubscriptionArguments) {
     // const channel = { channel, instId };
-    const data: OkxSubscription = { op: "subscribe", args: [args] };
+    const data: OkxWsSubscription = { op: "subscribe", args: [args] };
     // if (instId) { data.instId = instId; }
     console.log(this.wsId, '=> subscribing...', JSON.stringify(data));
     this.ws.send(JSON.stringify(data), error => error ? this.onWsError(error as any) : undefined);

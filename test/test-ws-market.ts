@@ -1,31 +1,43 @@
+import { MarketType, WebsocketOptions } from '@metacodi/abstract-exchange';
 import * as fs from 'fs';
 
-import { OkxMarketType } from '../src/types/okx.types';
-import { OkxWebsocketOptions } from '../src/types/okx.types';
-import { OkxWebsocket } from '../src/okx-ws';
+import { Resource } from '@metacodi/node-utils';
 
-import { getApiKeys } from './api-keys';
+import { OkxWebsocket } from '../src/okx-websocket';
+
 
 /**
  * ```bash
- * npx ts-node test/test-ws.ts
+ * npx ts-node test/test-ws-market.ts
  * ```
  */
+
+
+/** Archivo donde se escribirá la salida. */
+const logFileName = 'results/klines-1m.json';
+
+/** Escribe en el archivo `logFileName`. */
+function writeLog(variable: string, data: any) {
+  const url = Resource.normalize(`./test/${logFileName}`);
+  const value = JSON.stringify(data, null, ' ');
+  console.log(value);
+  fs.appendFileSync(url, `const ${variable} = ${value};\n\n`);
+}
+
 const testMarketWs = async () => {
   try {
 
     console.log('---------------- Market WebSocket TEST ----------------------');
 
-    const market: OkxMarketType = 'FUTURES';
+    const market: MarketType = 'futures';
     // const market: OkxMarketType = 'futures';
 
-    const isTest = true;
+    const isTest = false;
 
-    const options: OkxWebsocketOptions = {
-      streamType: 'user',
+    const options: WebsocketOptions = {
+      streamType: 'market',
       market: market,
       isTest,
-      ...getApiKeys({ isTest}), // Activar per privades
     };
 
     const ws = new OkxWebsocket(options);
@@ -36,9 +48,9 @@ const testMarketWs = async () => {
     //  PUBLIC
     // ---------------------------------------------------------------------------------------------------
 
-    // const tickerBTCUSDTSWAP = ws.symbolTicker('BTC-USDT-SWAP').subscribe(data => console.log('symbolTicker =>', data));
-    // const klines = ws.klines('BTC-USDT-SWAP', 'candle1m').subscribe(data => console.log('klines =>', data));
-    // const klines = ws.klines('BTC-USDT-SWAP', 'candle1m').subscribe(data => console.log('klines =>', data));
+    // const tickerBTCUSDTSWAP = ws.priceTicker('BTC_USDT').subscribe(data => console.log('priceTicker =>', data));
+    const klines = ws.klineTicker('BTC_USDT', '1m').subscribe(data => console.log('klines =>', data));
+    // const klines = ws.klineTicker('BTC-USDT-SWAP', 'candle1m').subscribe(data => console.log('klines =>', data));
     
     // setTimeout(() => { console.log('Test => Unsubscribe BTC-USDT-SWAP ticker'); tickerBTCUSDTSWAP.unsubscribe(); }, 5000);
     // setTimeout(() => { console.log('Test => Unsubscribe XBTUSDM tickerV2'); tickerV2XBTUSDM.unsubscribe(); }, 2500);
@@ -51,7 +63,9 @@ const testMarketWs = async () => {
     // ---------------------------------------------------------------------------------------------------
     
     
+    // const account = ws.accountUpdate().subscribe(data => console.log('accountUpdate =>', data));
     // const account = ws.accountUpdate({ ccy: 'USDT'}).subscribe(data => console.log('accountUpdate =>', data));
+    // const accountETH = ws.accountUpdate({ ccy: 'ETH'}).subscribe(data => console.log('accountUpdate ETH =>', data));
     // const positionsUpdate = ws.positionsUpdate({ instType: 'SWAP'}).subscribe(data => console.log('positionsUpdate =>', data));
     // const balancePositioUpdate = ws.balancePositioUpdate().subscribe(data => console.log('balancePositioUpdate =>', data));
     // const orderUpdate = ws.orderUpdate({ instType: 'SWAP'}).subscribe(data => console.log('orderUpdate =>', data));

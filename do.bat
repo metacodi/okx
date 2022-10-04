@@ -1,4 +1,9 @@
 
+
+if [%1]==[metacodi] (
+  npx ts-node publish/upgrade-metacodi-dependencies.ts
+)
+
 if [%1]==[pub] (
   if [%2]==[] (
     npx ts-node publish/publish.ts
@@ -15,5 +20,4 @@ if [%1]==[test] (
   ) else (
     npx ts-node test/test-ws-market.ts
   )
-
 )

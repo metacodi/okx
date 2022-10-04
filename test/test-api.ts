@@ -2,17 +2,29 @@ import moment from 'moment';
 import { interval } from 'rxjs';
 import * as fs from 'fs';
 
-import { OkxApiFunctions } from '../src/okx-api-function';
-import { OkxApiOptions, OkxMarketType } from '../src/types/okx.types';
+import { Resource } from '@metacodi/node-utils';
+import { ApiOptions } from '@metacodi/abstract-exchange';
 
+import { OkxApiFunctions } from '../src/okx-api-function';
 import { getApiKeys } from './api-keys';
-import { writeLog } from './log/write-log';
+
 
 /**
  * ```bash
  * npx ts-node test/test-api.ts
  * ```
  */
+
+/** Archivo donde se escribirá la salida. */
+const logFileName = 'results/getInstruments.ts';
+
+/** Escribe en el archivo `logFileName`. */
+function writeLog(variable: string, data: any) {
+  const url = Resource.normalize(`./test/${logFileName}`);
+  const value = JSON.stringify(data, null, ' ');
+  console.log(value);
+  fs.appendFileSync(url, `const ${variable} = ${value};\n\n`);
+}
 
 const testApi = async () => {
   try {
@@ -21,8 +33,9 @@ const testApi = async () => {
  
     const isTest = false;
 
-    const options: OkxApiOptions = {
+    const options: ApiOptions = {
       ...getApiKeys({ isTest}),
+      market: 'futures',
       isTest,
     } as any;
 
@@ -30,12 +43,13 @@ const testApi = async () => {
 
     const api = new OkxApiFunctions(options);
 
-    api.market = 'SWAP';
+    api.marketName = 'SWAP';
     
     // ---------------------------------------------------------------------------------------------------
     //  Public Data
     // ---------------------------------------------------------------------------------------------------
 
+    writeLog('instrument', await api.getInstruments());
     // console.log('getInstruments() =>', await api.getInstruments());
     // api.getInstruments().then( (res: any) => {
     //   console.log('getInstruments() =>');
@@ -112,14 +126,14 @@ const testApi = async () => {
     // console.log('getCurrencies() =>', await api.getCurrencies());
     // console.log('fundsTransfer() =>', await api.fundsTransfer('BTG','0.73167092', '6', '18'));
 
-    api.getAssetBalance().then((resp: any[]) => {
-      const found = resp.find( c => c.ccy === 'BTG');
-      if (found) {
-        api.fundsTransfer('BTG',found.availBal, '6', '18').then((resp: any) => {
-          api.postOrder('BTG-USDT', 'cash', 'sell', 'market', resp.atm, { clOrdId: '010779' });
-        });
-      }
-    })
+    // api.getAssetBalance().then((resp: any[]) => {
+    //   const found = resp.find( c => c.ccy === 'BTG');
+    //   if (found) {
+    //     api.fundsTransfer('BTG',found.availBal, '6', '18').then((resp: any) => {
+    //       api.postOrder('BTG-USDT', 'cash', 'sell', 'market', resp.atm, { clOrdId: '010779' });
+    //     });
+    //   }
+    // })
 
 
 

@@ -2,24 +2,31 @@ import axios, { AxiosError, AxiosRequestConfig } from "axios";
 import { createHmac } from 'crypto';
 import { METHODS } from "http";
 
-import { OkxApiOptions, OkxApiResquestOptions, OkxMarketType } from './types/okx.types';
+import { ExchangeApi, MarketType, HttpMethod, ApiOptions, ApiRequestOptions } from '@metacodi/abstract-exchange';
+import { OkxMarketType } from "./types/okx.types";
+import { ExchangeInfo } from '../../abstract-exchange/dist/abstract/exchange-api-types';
+import { formatMarketType } from './types/okx-parsers';
 
 
 
-export type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE' | 'OPTIONS';
-
-export abstract class OkxApi {
+/** {@link https://www.okx.com/docs-v5/en/#rest-api-authentication-making-requests Making Requests} */
+export class OkxApi { // implements ExchangeApi {
   
-  /** Indica el tipus de mercat. */
-  abstract market: OkxMarketType;
-  /** Retorna la url base sense el protocol. */
-  abstract baseUrl(): string;
+  /** Retorna la url base sense el protocol.
+   * {@link https://www.okx.com/docs-v5/en/#overview-production-trading-services Production Trading Services}
+   * {@link https://www.okx.com/docs-v5/en/#overview-demo-trading-services Demo Trading Services}
+   * 
+   *  OKX account can be used for login on Demo Trading. If you already have an OKX account, you can log in directly.
+   *  Start API Demo Trading by the following steps:
+   *  Login OKX —> Assets —> Start Demo Trading —> Personal Center —> Demo Trading API -> Create Demo Trading V5 APIKey —> Start your Demo Trading
+   */
+  baseUrl(): string { return `www.okx.com` };
 
   /** Opcions de configuració. */
-  protected options: OkxApiOptions;
+  protected options: ApiOptions;
 
   constructor(
-    options?  : OkxApiOptions,
+    options?: ApiOptions,
   ) {
     this.options = { ...this.defaultOptions, ...options };
   }
@@ -28,6 +35,10 @@ export abstract class OkxApi {
   // ---------------------------------------------------------------------------------------------------
   //  options
   // ---------------------------------------------------------------------------------------------------
+
+  get market(): MarketType { return this.options?.market; }
+
+  get okxMarket(): OkxMarketType { return formatMarketType(this.market); }
 
   /** {@link https://www.okx.com/es-es/account/my-api Create API Keys} */
   get apiKey(): string { return this.options?.apiKey; }
@@ -38,7 +49,7 @@ export abstract class OkxApi {
   
   get isTest(): boolean { return !!this.options?.isTest; }
   
-  get defaultOptions(): Partial<OkxApiOptions> {
+  get defaultOptions(): Partial<ApiOptions> {
     return {
       isTest: false,
       // recvWindow: 5000,
@@ -56,26 +67,26 @@ export abstract class OkxApi {
   //  request helpers
   // ---------------------------------------------------------------------------------------------------
 
-  public get(endpoint: string, options?: OkxApiResquestOptions): Promise<any> { return this.request('GET', endpoint, options); }
+  public get(endpoint: string, options?: ApiRequestOptions): Promise<any> { return this.request('GET', endpoint, options); }
 
-  public post(endpoint: string, options?: OkxApiResquestOptions): Promise<any> { return this.request('POST', endpoint, options); }
+  public post(endpoint: string, options?: ApiRequestOptions): Promise<any> { return this.request('POST', endpoint, options); }
 
-  public put(endpoint: string, options?: OkxApiResquestOptions): Promise<any> { return this.request('PUT', endpoint, options); }
+  public put(endpoint: string, options?: ApiRequestOptions): Promise<any> { return this.request('PUT', endpoint, options); }
 
-  public delete(endpoint: string, options?: OkxApiResquestOptions): Promise<any> { return this.request('DELETE', endpoint, options); }
+  public delete(endpoint: string, options?: ApiRequestOptions): Promise<any> { return this.request('DELETE', endpoint, options); }
 
 
   // ---------------------------------------------------------------------------------------------------
   //  request
   // ---------------------------------------------------------------------------------------------------
 
-  async request(method: HttpMethod, endpoint: string, options?: OkxApiResquestOptions): Promise<any> {
+  async request(method: HttpMethod, endpoint: string, options?: ApiRequestOptions): Promise<any> {
     if (!options) { options = {}; }
     const isPublic = options.isPublic === undefined ? false : options.isPublic;
     const headers = options.headers === undefined ? undefined : options.headers;
     const params = options.params === undefined ? undefined : options.params;
 
-    const baseUrl = options.baseUrlOverride || this.baseUrl();
+    const baseUrl = this.baseUrl();
     const [uri, _query = ''] = endpoint.split('?');
 
     const config: AxiosRequestConfig<any> = {
@@ -196,14 +207,14 @@ export abstract class OkxApi {
       return createHmac('sha256', secret).update(message).digest('base64');
     }
     // Si no s'ha pogut importar la funció en entorn browser, li donem suport.
-    // const encoder = new TextEncoder();
-    // const keyData = encoder.encode(secret);
-    // const algorithm = {name: 'HMAC', hash: {name: 'SHA-256'}};
-    // const extractable = false;
-    // const keyUsages: KeyUsage[] = ['sign'];
-    // const key = await window.crypto.subtle.importKey('raw', keyData, algorithm, extractable, keyUsages);
-    // const signature = await window.crypto.subtle.sign('HMAC', key, encoder.encode(message));
-    // return Buffer.from(signature).toString('base64');
+    const encoder = new TextEncoder();
+    const keyData = encoder.encode(secret);
+    const algorithm = {name: 'HMAC', hash: {name: 'SHA-256'}};
+    const extractable = false;
+    const keyUsages: KeyUsage[] = ['sign'];
+    const key = await window.crypto.subtle.importKey('raw', keyData, algorithm, extractable, keyUsages);
+    const signature = await window.crypto.subtle.sign('HMAC', key, encoder.encode(message));
+    return Buffer.from(signature).toString('base64');
   };
 
   protected parseException(e: AxiosError, url: string): unknown {
@@ -221,5 +232,18 @@ export abstract class OkxApi {
     };
   }
 
-  
+
+  // ---------------------------------------------------------------------------------------------------
+  //  Public
+  // ---------------------------------------------------------------------------------------------------
+
+  /** {@link https://www.okx.com/docs-v5/en/#rest-api-public-data-get-instruments Get instruments} */
+  getInstruments(): Promise<any[]> {
+    return this.get(`api/v5/public/instruments?instType=${this.okxMarket}`, { isPublic: true });
+  }
+
+  // getExchangeInfo(): Promise<ExchangeInfo> {
+
+  // }
+
 }
