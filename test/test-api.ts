@@ -19,7 +19,7 @@ const testApi = async () => {
     
     console.log('---------------- API TEST ----------------------');
  
-    const isTest = true;
+    const isTest = false;
 
     const options: OkxApiOptions = {
       ...getApiKeys({ isTest}),
@@ -95,6 +95,7 @@ const testApi = async () => {
     // ---------------------------------------------------------------------------------------------------
     
     
+    // console.log('postOrder() =>', await api.postOrder('BTG-USDT', 'cash', 'sell', 'market', 0.73167092, { clOrdId: '010779' }));
     // console.log('postOrder() =>', await api.postOrder('BTC-USDT-SWAP', 'isolated', 'buy', 'market', 1000, { clOrdId: '010779' }));
     // console.log('postOrder() =>', await api.postOrder('BTC-USDT-SWAP', 'isolated', 'sell', 'market', 200, { clOrdId: '010777' }));
     // console.log('cancelOrder() =>', await api.cancelOrder('BTC-USDT-SWAP', { ordId: '497214683267596288' }));
@@ -109,8 +110,16 @@ const testApi = async () => {
     
     // console.log('getAssetBalance() =>', await api.getAssetBalance());
     // console.log('getCurrencies() =>', await api.getCurrencies());
+    // console.log('fundsTransfer() =>', await api.fundsTransfer('BTG','0.73167092', '6', '18'));
 
-
+    api.getAssetBalance().then((resp: any[]) => {
+      const found = resp.find( c => c.ccy === 'BTG');
+      if (found) {
+        api.fundsTransfer('BTG',found.availBal, '6', '18').then((resp: any) => {
+          api.postOrder('BTG-USDT', 'cash', 'sell', 'market', resp.atm, { clOrdId: '010779' });
+        });
+      }
+    })
 
 
 
