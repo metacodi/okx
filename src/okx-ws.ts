@@ -334,11 +334,7 @@ export class OkxWebsocket extends EventEmitter {
         else if (channel === `positions`) { return 'positionsUpdate'; }
         else if (channel === `balance_and_position`) { return 'balancePositioUpdate'; }
         else if (channel === `orders`) { return 'orderUpdate'; }
-        // else if (topic === '/contractAccount/wallet' && subject === 'availableBalance.change') { return 'balanceUpdate'; }
-        // else if (topic === '/contractAccount/wallet' && subject === 'withdrawHold.change') { return 'withdrawHold'; }
-        // else if (topic.startsWith('/contract/position') && subject === 'position.change') { return 'positionChange'; }
-        // else if (topic.startsWith('/contract/position') && subject === 'position.settlement') { return 'fundingSettlement'; }
-        // else if (topic.startsWith('/contract/position') && subject === 'position.adjustRiskLimit') { return 'riskLimitChange'; }
+        
       }
     }
     return undefined;
