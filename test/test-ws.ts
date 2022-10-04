@@ -22,7 +22,7 @@ const testMarketWs = async () => {
     const options: OkxWebsocketOptions = {
       streamType: 'market',
       market: market,
-      isTest: true,
+      isTest: false,
     };
     
     const ws = new OkxWebsocket(options);
@@ -34,12 +34,12 @@ const testMarketWs = async () => {
     // const klines = ws.klines('XBTUSDM', '1min').subscribe(data => console.log('klines =>', data));
     // const klines = ws.klines('BTC-USDT-SWAP', 'candle1m').subscribe(data => console.log('klines =>', data));
     
-    setTimeout(() => { console.log('Test => Unsubscribe BTC-USDT-SWAP ticker'); tickerBTCUSDTSWAP.unsubscribe(); }, 20000);
+    setTimeout(() => { console.log('Test => Unsubscribe BTC-USDT-SWAP ticker'); tickerBTCUSDTSWAP.unsubscribe(); }, 5000);
     // setTimeout(() => { console.log('Test => Unsubscribe XBTUSDM tickerV2'); tickerV2XBTUSDM.unsubscribe(); }, 2500);
     // setTimeout(() => { console.log('Test => Unsubscribe XBTUSDM klines'); klines.unsubscribe(); }, 10000);
 
     // setTimeout(() => { console.log('Reconnecting...'); ws.reconnect(); }, 52000);
-    setTimeout(() => { console.log('Close...'); ws.close(); }, 22000);
+    setTimeout(() => { console.log('Close...'); ws.close(); }, 6000);
 
   } catch (error) {
     console.error('Websocket ERROR', error);

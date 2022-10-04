@@ -23,7 +23,9 @@ export class OkxWebsocket extends EventEmitter {
   /** Emisors de missatges. */
   protected emitters: { [WsStreamEmitterType: string]: Subject<any> } = {};
   /** Identificador de login del servidor websocket. */
-  protected loggedIn?: boolean;
+  protected loggedIn: boolean;
+  /** Arguments. */
+  protected argumets: { [key: string]: any } = {};
 
   constructor(
     options: OkxWebsocketOptions,
@@ -167,7 +169,7 @@ export class OkxWebsocket extends EventEmitter {
       console.log(this.wsId, '=> reconnected!');
       this.emit('reconnected', { event });
     } else {
-      console.log(this.wsId, '=> connected!', event);
+      console.log(this.wsId, '=> connected!');
       this.emit('open', { event });
 
     }
@@ -253,25 +255,19 @@ export class OkxWebsocket extends EventEmitter {
   protected onWsMessage(event: WebSocket.MessageEvent) {
     const data = this.parseWsMessage(event);
     this.emit('message', data);
-    // switch (this.discoverEventType(data)) {
-    //   case 'welcome':
-    //     this.connectId = data.id;
-    //     console.log(this.wsId, '=> connectId:', this.connectId);
-    //     break;
-    //   case 'symbolTicker':
-    //   case 'symbolTickerV2':
-    //   case 'orderUpdate':
-    //   case 'balanceUpdate':
-    //   case 'withdrawHold':
-    //   case 'positionChange':
-    //   case 'fundingSettlement':
-    //   case 'riskLimitChange':
-    //     this.emitTopicEvent(data);
-    //     break;
-    //   default:
-    //     console.log('onWsMessage =>', data);
-    //     console.log(JSON.stringify(data));
-    // }
+    console.log(data);
+    switch (this.discoverEventType(data)) {
+      case 'welcome':
+        this.connectId = data.id;
+        console.log(this.wsId, '=> connectId:', this.connectId);
+        break;
+      case 'symbolTicker':
+        this.emitTopicEvent(data);
+        break;
+      default:
+        console.log('onWsMessage =>', data);
+        console.log(JSON.stringify(data));
+    }
   }
 
   protected parseWsMessage(event: any): any {
@@ -290,16 +286,16 @@ export class OkxWebsocket extends EventEmitter {
     if (typeof obj === 'object') {
       if (Object.keys(obj).length === 2 && obj.hasOwnProperty('id') && obj.hasOwnProperty('type')) {
         return obj.type;
-      } else if (obj.hasOwnProperty('topic')) {
-        const { topic, subject } = obj;
-        if (topic === `/contractMarket/ticker` || topic.startsWith(`/contractMarket/ticker:`)) { return 'symbolTicker'; }
-        else if (topic.startsWith(`/contractMarket/tickerV2`)) { return 'symbolTickerV2'; }
-        else if (topic.startsWith(`/contractMarket/tradeOrders`)) { return 'orderUpdate'; }
-        else if (topic === '/contractAccount/wallet' && subject === 'availableBalance.change') { return 'balanceUpdate'; }
-        else if (topic === '/contractAccount/wallet' && subject === 'withdrawHold.change') { return 'withdrawHold'; }
-        else if (topic.startsWith('/contract/position') && subject === 'position.change') { return 'positionChange'; }
-        else if (topic.startsWith('/contract/position') && subject === 'position.settlement') { return 'fundingSettlement'; }
-        else if (topic.startsWith('/contract/position') && subject === 'position.adjustRiskLimit') { return 'riskLimitChange'; }
+      } else if (obj.hasOwnProperty('arg')) {
+        const { channel } = obj.arg;
+        if (channel === `tickers` ) { return 'symbolTicker'; }
+        else if (channel) { return 'symbolTickerV2'; }
+        // else if (topic.startsWith(`/contractMarket/tradeOrders`)) { return 'orderUpdate'; }
+        // else if (topic === '/contractAccount/wallet' && subject === 'availableBalance.change') { return 'balanceUpdate'; }
+        // else if (topic === '/contractAccount/wallet' && subject === 'withdrawHold.change') { return 'withdrawHold'; }
+        // else if (topic.startsWith('/contract/position') && subject === 'position.change') { return 'positionChange'; }
+        // else if (topic.startsWith('/contract/position') && subject === 'position.settlement') { return 'fundingSettlement'; }
+        // else if (topic.startsWith('/contract/position') && subject === 'position.adjustRiskLimit') { return 'riskLimitChange'; }
       }
     }
     return undefined;
@@ -313,14 +309,14 @@ export class OkxWebsocket extends EventEmitter {
   symbolTicker(symbol: string): Subject<any> {
     const topic = `tickers`;
     const subject = symbol;
-    return this.registerTopicSubscription(topic, subject);
+    return this.registerTopicSubscription(topic, subject, { channel: topic, instId: symbol });
   }
 
   /** {@link https://www.okx.com/docs-v5/en/#websocket-api-public-channel-tickers-channel Candlesticks channel} */
-  klines(symbol: string, type: string): Subject<any> {
-    const topic = type;
+  klines(symbol: string, channel: string): Subject<any> {
+    const topic = channel;
     const subject = symbol;
-    return this.registerTopicSubscription(topic, subject);
+    return this.registerTopicSubscription(topic, subject, { channel, instId: symbol });
   }
 
 
@@ -330,14 +326,15 @@ export class OkxWebsocket extends EventEmitter {
 
   private subscriptionId = 0;
 
-  protected registerTopicSubscription(topic: string, subject?: string) {
+  protected registerTopicSubscription(topic: string, subject: string, args: any) {
     const topicKey = subject ? `${topic}#${subject}` : topic;
     const stored = this.emitters[topicKey];
     if (stored) { return stored; }
     const created = new Subject<any>();
     this.emitters[topicKey] = created;
+    this.argumets[topicKey] = args;
     // console.log('Register new topic =>', topicKey);
-    if (this.status === 'connected') { this.subscribeTopic(topic, subject); }
+    if (this.status === 'connected') { this.subscribeTopic(args); }
     return created;
   }
 
@@ -348,7 +345,8 @@ export class OkxWebsocket extends EventEmitter {
       const [topic, subject] = topicKey.split('#');
       const hasSubscriptions = !this.isSubjectUnobserved(stored);
       if (hasSubscriptions) {
-        this.subscribeTopic(topic, subject);
+        const args = this.argumets[topicKey];
+        this.subscribeTopic( args);
       } else {
         if (stored) { stored.complete(); }
         delete this.emitters[topicKey];
@@ -379,9 +377,9 @@ export class OkxWebsocket extends EventEmitter {
     return !emitter || emitter.closed || !emitter.observers?.length;
   }
 
-  protected subscribeTopic(channel: string, instId: string) {
+  protected subscribeTopic(args: any) {
     // const channel = { channel, instId };
-    const data: OkxSubscription = { op: "subscribe", args: [{ channel, instId }]  };
+    const data: OkxSubscription = { op: "subscribe", args: [args]  };
     // if (instId) { data.instId = instId; }
     console.log(this.wsId, '=> subscribing...', JSON.stringify(data));
     this.ws.send(JSON.stringify(data), error => error ? this.onWsError(error as any) : undefined);
