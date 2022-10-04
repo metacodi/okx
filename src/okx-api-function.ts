@@ -250,7 +250,7 @@ export class OkxApiFunctions extends OkxApi {
     params = options?.loanTrans === undefined ? params : { ...params, ...{ loanTrans: options.loanTrans } };
     params = options?.clientId === undefined ? params : { ...params, ...{ clientId: options.clientId } };
     params = options?.omitPosRisk === undefined ? params : { ...params, ...{ omitPosRisk: options.omitPosRisk } };
-    const results = await this.get(`api/v5/asset/transfer`, { params }) as { code: string; data: any };
+    const results = await this.post(`api/v5/asset/transfer`, { params }) as { code: string; data: any };
     if (results.code === '0') { return results.data; }
     return Promise.reject(results);
   }
