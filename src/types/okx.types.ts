@@ -73,7 +73,7 @@ export type OkxMarketType = 'SPOT' | 'MARGIN' | 'SWAP' | 'FUTURES' | 'OPTION';
 
 
 // ---------------------------------------------------------------------------------------------------
-//  Topic subscription
+//  Websocket
 // ---------------------------------------------------------------------------------------------------
 
 export type OkxWsChannelType = 'tickers' | `candle${KlineIntervalType}` | 'account' | 'positions' | 'balance_and_position' | 'orders' | 'liquidation-warning';
@@ -86,9 +86,4 @@ export interface OkxWsSubscriptionArguments {
 export interface OkxWsSubscription {
   op: 'subscribe' | 'unsubscribe';
   args: [OkxWsSubscriptionArguments];
-}
-
-const sub: OkxWsSubscription = {
-  op: 'subscribe',
-  args: [{ channel: 'candle1m' }]
 }

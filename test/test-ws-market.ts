@@ -54,7 +54,7 @@ const testMarketWs = async () => {
     
     // setTimeout(() => { console.log('Test => Unsubscribe BTC-USDT-SWAP ticker'); tickerBTCUSDTSWAP.unsubscribe(); }, 5000);
     // setTimeout(() => { console.log('Test => Unsubscribe XBTUSDM tickerV2'); tickerV2XBTUSDM.unsubscribe(); }, 2500);
-    // setTimeout(() => { console.log('Test => Unsubscribe BTC-USDT-SWAP klines'); klines.unsubscribe(); }, 5000);
+    setTimeout(() => { console.log('Test => Unsubscribe BTC-USDT-SWAP klines'); klines.unsubscribe(); }, 3000);
     
     // setTimeout(() => { console.log('Reconnecting...'); ws.reconnect(); }, 52000);
     

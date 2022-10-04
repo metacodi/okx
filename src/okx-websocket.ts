@@ -418,7 +418,6 @@ export class OkxWebsocket extends EventEmitter {
     const topics: string[] = [];
     Object.keys(this.emitters).map(topicKey => {
       const stored = this.emitters[topicKey];
-      // const [channel, subject] = topicKey.split('#');
       const hasSubscriptions = !this.isSubjectUnobserved(stored);
       if (hasSubscriptions) {
         const args = this.argumets[topicKey];
@@ -441,9 +440,9 @@ export class OkxWebsocket extends EventEmitter {
       const value = parser ? parser(obj) : obj;
       stored.next(value);
     } else {
-      // this.unsubscribeTopic(channel, subject);
-      // if (stored) { stored.complete(); }
-      // delete this.emitters[topicKey];
+      this.unsubscribeTopic(args);
+      if (stored) { stored.complete(); }
+      delete this.emitters[topicKey];
     }
   }
 
@@ -468,10 +467,9 @@ export class OkxWebsocket extends EventEmitter {
     this.ws.send(JSON.stringify(data), error => error ? this.onWsError(error as any) : undefined);
   }
 
-  protected unsubscribeTopic(channel: string, instId?: string) {
-    console.log(this.wsId, '=> unsubscribing...', { channel, instId });
-    const data: any = { op: "unsubscribe", channel };
-    if (instId) { data.instId = instId; }
+  protected unsubscribeTopic(args: OkxWsSubscriptionArguments) {
+    console.log(this.wsId, '=> unsubscribing...', args);
+    const data: any = { op: "unsubscribe", args:[args] };
     this.ws.send(JSON.stringify(data), error => error ? this.onWsError(error as any) : undefined);
   }
 

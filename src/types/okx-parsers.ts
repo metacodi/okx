@@ -1,6 +1,6 @@
 import moment, { unitOfTime } from 'moment';
 
-import { SymbolType, WsStreamType, MarketType, MarketPrice, MarketKline, KlineIntervalType } from '@metacodi/abstract-exchange';
+import { SymbolType, WsStreamType, MarketType, MarketPrice, MarketKline, calculateCloseTime, KlineIntervalType } from '@metacodi/abstract-exchange';
 import { timestamp } from '@metacodi/node-utils';
 
 import { OkxWsStreamType, OkxMarketType, OkxWsSubscriptionArguments } from './okx.types';
@@ -51,7 +51,7 @@ export const formatMarketType = (market: MarketType): OkxMarketType => {
 
 /** {@link https://www.okx.com/docs-v5/en/#websocket-api-public-channel-tickers-channel Tickers channel} */
 export const parsePriceTickerEvent = (obj: { arg: OkxWsSubscriptionArguments } & { data: any[] }): MarketPrice => {
-  // Ex: 'BTC-USDT-SWAP'.
+  // Ex: instId = 'BTC-USDT-SWAP'.
   const instId: string[] = obj.arg.instId.split('-');
   const market = parseMarketType(instId.pop() as OkxMarketType);
   const symbol = parseSymbol(instId.join('-'));
@@ -68,16 +68,14 @@ export const parsePriceTickerEvent = (obj: { arg: OkxWsSubscriptionArguments } &
 
 /** {@link https://www.okx.com/docs-v5/en/#websocket-api-public-channel-candlesticks-channel Candlesticks channel} */
 export const parseKlineTickerEvent = (obj: { arg: OkxWsSubscriptionArguments } & { data: any[] }): MarketKline => {
-  // Ex: 'BTC-USDT-SWAP'.
+  // Ex: instId = 'BTC-USDT-SWAP'.
   const instId: string[] = obj.arg.instId.split('-');
   const market = parseMarketType(instId.pop() as OkxMarketType);
   const symbol = parseSymbol(instId.join('-'));
   const data = obj.data[0];
   const interval = obj.arg.channel.replace('candle', '') as KlineIntervalType;
-  const unit = interval.charAt(interval.length - 1) as unitOfTime.DurationConstructor;
-  const duration = +interval.slice(0, -1);
   const openTime = timestamp(moment(+data[0]));
-  const closeTime = moment(moment(openTime)).add(duration, unit).format('YYYY-MM-DD HH:mm:ss.SSS');
+  const closeTime = calculateCloseTime(openTime, interval);
   const baseVolume = market === 'futures' ? +data[6] : +data[6] / +data[4];
   const quoteVolume = market === 'futures' ? +data[6] * +data[4] : +data[6];
   return {
