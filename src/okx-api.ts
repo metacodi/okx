@@ -4,7 +4,6 @@ import { METHODS } from "http";
 
 import { ExchangeApi, MarketType, HttpMethod, ApiOptions, ApiRequestOptions } from '@metacodi/abstract-exchange';
 import { OkxMarketType } from "./types/okx.types";
-import { ExchangeInfo } from '../../abstract-exchange/dist/abstract/exchange-api-types';
 import { formatMarketType } from './types/okx-parsers';
 
 
@@ -36,6 +35,7 @@ export class OkxApi { // implements ExchangeApi {
   //  options
   // ---------------------------------------------------------------------------------------------------
 
+  
   get market(): MarketType { return this.options?.market; }
 
   get okxMarket(): OkxMarketType { return formatMarketType(this.market); }

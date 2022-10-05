@@ -9,9 +9,16 @@ export type OkxWsStreamType = 'public' | 'private';
 
 export type OkxMarketType = 'SPOT' | 'MARGIN' | 'SWAP' | 'FUTURES' | 'OPTION';
 
-// export type OkxOrderSide = 'buy' | 'sell';
+export type OkxOrderSide = 'buy' | 'sell';
 
-// export type OkxOrderType = 'limit' | 'market' | 'limit_stop' | 'market_stop';
+export type OkxOrderType =
+  'market' | // market order
+  'limit' | // limit order
+  'post_only' | // Post-only order
+  'fok' | // Fill-or-kill order
+  'ioc' | // Immediate-or-cancel order
+  'optimal_limit_ioc' // Market order with immediate-or-cancel order (applicable only to Futures and Perpetual swap).
+  ;
 
 // export type OkxStopOrderType = 'up' | 'down';
 
@@ -28,7 +35,7 @@ export type OkxMarketType = 'SPOT' | 'MARGIN' | 'SWAP' | 'FUTURES' | 'OPTION';
 //  Websocket
 // ---------------------------------------------------------------------------------------------------
 
-export type OkxWsChannelType = 'tickers' | `candle${KlineIntervalType}` | 'account' | 'positions' | 'balance_and_position' | 'orders' | 'liquidation-warning';
+export type OkxWsChannelType = 'tickers' | `candle${KlineIntervalType}` | 'account' | 'positions' | 'balance_and_position' | 'orders' | 'orders-algo' | 'liquidation-warning';
 
 export type OkxWsEventType = 'login' | 'subscribe' | 'unsubscribe';
 

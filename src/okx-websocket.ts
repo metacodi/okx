@@ -3,23 +3,25 @@ import EventEmitter from 'events';
 import { Subject, interval, timer, Subscription } from 'rxjs';
 import { createHmac } from 'crypto';
 
-import { MarketType, SymbolType, MarketPrice, KlinesRequest, MarketKline, KlineIntervalType, Order, CoinType } from '@metacodi/abstract-exchange';
+import { MarketType, SymbolType, MarketPrice, KlinesRequest, MarketKline, KlineIntervalType, Order, CoinType, ApiOptions } from '@metacodi/abstract-exchange';
 import { ExchangeWebsocket, WebsocketOptions, WsStreamType, WsConnectionState, WsAccountUpdate, WsBalancePositionUpdate } from '@metacodi/abstract-exchange';
 
 import { OkxApi } from './okx-api';
 import { OkxMarketType, OkxWsSubscriptionRequest, OkxWsSubscriptionArguments, OkxWsChannelType, OkxWsEventType, OkxWsChannelEvent, OkxWsLoginRequest } from './types/okx.types';
 import { formatMarketType, formatWsStreamType, parseSymbol, formatSymbol, parsePriceTickerEvent, parseKlineTickerEvent, parseAccountUpdateEvent, parseBalancePositionUpdateEvent, parseOrderUpdateEvent } from './types/okx-parsers';
+import { OkxApiFunctions } from './okx-api-function';
+
 
 
 export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
   /** Estat de la connexió. */
   status: WsConnectionState = 'initial';
+  /** Referència a la instància del client API. */
+  protected api: OkxApiFunctions;
   /** Opcions de configuració. */
   protected options: WebsocketOptions;
   /** Referència a la instància del websocket subjacent. */
   protected ws: WebSocket
-  /** Referència a la instància del client API. */
-  protected api: OkxApi;
   /** Subscripció al interval que envia un ping al servidor per mantenir viva la connexió.  */
   protected pingTimer?: Subscription;
   /** Subscriptor al timer que controla la resposta del servidor. */
@@ -32,6 +34,8 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
   protected loggedIn: boolean;
   /** Arguments per tornar a subscriure's al canal (respawn). */
   protected argumets: { [key: string]: any } = {};
+  /** Identificador de connexió rebut del servidor websocket. */
+  protected userId?: string;
 
   constructor(
     options: WebsocketOptions,
@@ -92,7 +96,27 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
     // TODO: Throw error if !wsInfo.
     const { pingInterval, pongTimeout, isTest } = this.options;
 
-    const url = !isTest ? `wss://ws.okx.com:8443/ws/v5/${wsType}` : `wss://wspap.okx.com:8443/ws/v5/${wsType}`;
+    // if (isTest) {
+    //   const options: ApiOptions = {
+    //     apiKey: this.apiKey,
+    //     apiSecret: this.apiSecret,
+    //     apiPassphrase: this.apiPassphrase,
+    //     market: this.market,
+    //     isTest,
+    //   } as any;
+  
+    //   // if (options.isTest) { setTestKeys(options, market); }
+  
+    //   this.api = new OkxApiFunctions(options);
+  
+    //   const config = await this.api.getAccountConfig();
+    //   console.log('config', config);
+    //   if (config !== undefined) { this.userId = config[0].data.uid; } else {  throw ({ message: `No s'ha pogut trobar la cofiguració de l'usuari` });}
+    // }
+
+    
+
+    const url = !isTest ? `wss://ws.okx.com:8443/ws/v5/${wsType}` : `wss://wspap.okx.com:8443/ws/v5/${wsType}?brokerId=${this.userId}`;
 
     // Ajustem els paràmetres segons el nou servidor.
     this.options.pingInterval = pingInterval || this.defaultOptions.pingInterval;
@@ -125,7 +149,7 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
     // Si no s'ha pogut importar la funció en entorn browser, li donem suport.
     const encoder = new TextEncoder();
     const keyData = encoder.encode(secret);
-    const algorithm = {name: 'HMAC', hash: {name: 'SHA-256'}};
+    const algorithm = { name: 'HMAC', hash: { name: 'SHA-256' } };
     const extractable = false;
     const keyUsages: KeyUsage[] = ['sign'];
     const key = await window.crypto.subtle.importKey('raw', keyData, algorithm, extractable, keyUsages);
@@ -276,7 +300,6 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
   protected onWsMessage(event: WebSocket.MessageEvent) {
     const data = this.parseWsMessage(event);
     this.emit('message', data);
-    // console.log(data);
     switch (this.discoverEventType(data)) {
       case 'login':
         this.loggedIn = true;
@@ -351,7 +374,7 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
     const ccy = asset ? { ccy: asset } : undefined;
     return this.registerChannelSubscription({ channel, ...ccy });
   }
-  
+
   // /** {@link https://www.okx.com/docs-v5/en/#websocket-api-private-channel-positions-channel Positions channel} */
   // positionsUpdate(symbol?: SymbolType): Subject<any> {
   //   const channel: OkxWsChannelType = 'positions';
@@ -359,7 +382,7 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
   //   const uly = symbol ? { uly: formatSymbol(symbol) } : undefined;
   //   return this.registerChannelSubscription({ channel, instType, ...uly });
   // }
-  
+
   /** {@link https://www.okx.com/docs-v5/en/#websocket-api-private-channel-balance-and-position-channel Balance and position channel} */
   balancePositionUpdate(): Subject<WsBalancePositionUpdate> {
     const channel: OkxWsChannelType = 'balance_and_position';
@@ -369,6 +392,16 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
   /** {@link https://www.okx.com/docs-v5/en/#websocket-api-private-channel-order-channel Order channel} */
   orderUpdate(symbol?: SymbolType): Subject<Order> {
     const channel: OkxWsChannelType = 'orders';
+    const instType = this.okxMarket;
+    const uly = symbol ? { uly: formatSymbol(symbol) } : undefined;
+    const subject = this.registerChannelSubscription([{ channel, instType, ...uly }, { channel: 'orders-algo', instType, ...uly }]);
+    // if (this.status === 'connected') { this.subscribeChannel({ channel: 'orders-algo', instType, ...uly }); }
+    return subject;
+  }
+
+  /** {@link https://www.okx.com/docs-v5/en/#websocket-api-private-channel-algo-orders-channel Algo orders channel} */
+  orderAlgoUpdate(symbol?: SymbolType): Subject<Order> {
+    const channel: OkxWsChannelType = 'orders-algo';
     const instType = this.okxMarket;
     const uly = symbol ? { uly: formatSymbol(symbol) } : undefined;
     return this.registerChannelSubscription({ channel, instType, ...uly });
@@ -387,15 +420,19 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
   //  Channel subscriptions
   // ---------------------------------------------------------------------------------------------------
 
-  protected registerChannelSubscription(args: OkxWsSubscriptionArguments) {
-    const channelKey = Object.keys(args).map(key => args[key]).join('#');
-    const stored = this.emitters[channelKey];
-    if (stored) { return stored; }
+  protected registerChannelSubscription(args: OkxWsSubscriptionArguments | OkxWsSubscriptionArguments[]) {
+    if (!Array.isArray(args)) { args = [args] };
+    const channelKey = args.map(a => Object.keys(a).map(key => a[key]).join('#')).find(chKey => !!this.emitters[chKey]);
+    if (channelKey) { return this.emitters[channelKey]; }
+    // const stored = this.emitters[channelKey];
+    // if (stored) { return stored; }
     const created = new Subject<any>();
     this.emitters[channelKey] = created;
     this.argumets[channelKey] = args;
     // console.log('Register new channel =>', channelKey);
-    if (this.status === 'connected') { this.subscribeChannel(args); }
+    if (this.status === 'connected') {
+      this.subscribeChannel(args);
+    }
     return created;
   }
 
@@ -433,6 +470,7 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
   }
 
   protected getChannelParser(arg: OkxWsSubscriptionArguments) {
+    console.log('getChannelParser => ', arg);
     const channel = arg.channel.startsWith('candle') ? 'klines' : arg.channel;
     switch (channel) {
       case 'tickers': return parsePriceTickerEvent;
@@ -440,6 +478,7 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
       case 'account': return parseAccountUpdateEvent;
       case 'balance_and_position': return parseBalancePositionUpdateEvent;
       case 'orders': return parseOrderUpdateEvent;
+      case 'orders-algo': return parseOrderUpdateEvent;
       default: return undefined;
     }
   }
