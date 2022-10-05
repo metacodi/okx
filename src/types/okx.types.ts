@@ -78,6 +78,8 @@ export type OkxMarketType = 'SPOT' | 'MARGIN' | 'SWAP' | 'FUTURES' | 'OPTION';
 
 export type OkxWsChannelType = 'tickers' | `candle${KlineIntervalType}` | 'account' | 'positions' | 'balance_and_position' | 'orders' | 'liquidation-warning';
 
+export type OkxWsEventType = 'login' | 'subscribe' | 'unsubscribe';
+
 export interface OkxWsSubscriptionArguments {
   channel: OkxWsChannelType;
   [key: string]: any;
@@ -87,3 +89,5 @@ export interface OkxWsSubscription {
   op: 'subscribe' | 'unsubscribe';
   args: [OkxWsSubscriptionArguments];
 }
+
+export type OkxWsEvent = { arg: OkxWsSubscriptionArguments } & { data: any[] };

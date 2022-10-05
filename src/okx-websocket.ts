@@ -7,8 +7,8 @@ import { MarketType, SymbolType, MarketPrice, KlinesRequest, MarketKline, KlineI
 import { ExchangeWebsocket, WebsocketOptions, WsStreamType, WsConnectionState, WsAccountUpdate, WsBalancePositionUpdate } from '@metacodi/abstract-exchange';
 
 import { OkxApi } from './okx-api';
-import { OkxMarketType, OkxWsSubscription, OkxWsSubscriptionArguments, OkxWsChannelType } from './types/okx.types';
-import { formatMarketType, formatWsStreamType, parseSymbol, formatSymbol, parsePriceTickerEvent, parseKlineTickerEvent } from './types/okx-parsers';
+import { OkxMarketType, OkxWsSubscription, OkxWsSubscriptionArguments, OkxWsChannelType, OkxWsEventType } from './types/okx.types';
+import { formatMarketType, formatWsStreamType, parseSymbol, formatSymbol, parsePriceTickerEvent, parseKlineTickerEvent, parseAccountUpdateEvent, parseBalancePositionUpdateEvent, parseOrderUpdateEvent } from './types/okx-parsers';
 
 
 export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
@@ -284,20 +284,11 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
         break;
       case 'tickers':
       case 'klines':
+      case 'account':
+      case 'balance_and_position':
+      // case 'positions':
+      case 'orders':
         this.emitChannelEvent(data);
-        break;
-      case 'accountUpdate':
-        console.log(this.wsId, '=> data:', data.data[0].details);
-        break;
-      case 'positionsUpdate':
-        console.log(this.wsId, '=> data:', data.data);
-        break;
-      case 'balancePositioUpdate':
-        console.log(this.wsId, '=> balData:', data.data[0].balData);
-        console.log(this.wsId, '=> posData:', data.data[0].posData);
-        break;
-      case 'orderUpdate':
-        console.log(this.wsId, '=> data:', data.data);
         break;
       default:
         console.log('onWsMessage =>', data);
@@ -315,22 +306,14 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
     return event?.data ? JSON.parse(event.data) : event;
   }
 
-  protected discoverEventType(data: any): any {
+  protected discoverEventType(data: any): OkxWsChannelType | 'klines' | OkxWsEventType | undefined {
     const obj = Array.isArray(data) ? (data.length ? data[0] : undefined) : data;
     if (typeof obj === 'object') {
-      if (Object.keys(obj).length === 2 && obj.hasOwnProperty('event') && obj.hasOwnProperty('code')) {
-        return obj.event;
-      } else if (obj.hasOwnProperty('event')) {
-        // Ex: event = 'login' | 'subscribe' | 'unsubscribe'
-        return obj.event;
-      } else if (obj.hasOwnProperty('arg')) {
-        const { channel } = obj.arg;
-        if (channel === `tickers`) { return 'tickers'; }
-        else if (channel.startsWith(`candle`)) { return 'klines'; }
-        // else if (channel === `account`) { return 'accountUpdate'; }
-        // else if (channel === `positions`) { return 'positionsUpdate'; }
-        // else if (channel === `balance_and_position`) { return 'balancePositioUpdate'; }
-        // else if (channel === `orders`) { return 'orderUpdate'; }
+      if (obj.hasOwnProperty('event')) {
+        return obj.event as OkxWsEventType;
+      } else if (obj.hasOwnProperty('arg') && obj.arg.hasOwnProperty('channel')) {
+        const channel = obj.arg.channel.startsWith('candle') ? 'klines' : obj.args.channel;
+        return channel;
       }
     }
     return undefined;
@@ -338,7 +321,7 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
 
 
   // ---------------------------------------------------------------------------------------------------
-  //  Public channel
+  //  Public channels
   // ---------------------------------------------------------------------------------------------------
 
   /** {@link https://www.okx.com/docs-v5/en/#websocket-api-public-channel-tickers-channel Tickers channel} */
@@ -357,7 +340,7 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
 
 
   // ---------------------------------------------------------------------------------------------------
-  //  Private channel
+  //  Private channels
   // ---------------------------------------------------------------------------------------------------
 
   /** {@link https://www.okx.com/docs-v5/en/#websocket-api-private-channel-account-channel Account channel} */
@@ -451,6 +434,9 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
     switch (channel) {
       case 'tickers': return parsePriceTickerEvent;
       case 'klines': return parseKlineTickerEvent;
+      case 'account': return parseAccountUpdateEvent;
+      case 'balance_and_position': return parseBalancePositionUpdateEvent;
+      case 'orders': return parseOrderUpdateEvent;
       default: return undefined;
     }
   }
@@ -477,5 +463,6 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
   // ---------------------------------------------------------------------------------------------------
 
   protected get wsId(): string { return `${this.market}-${this.streamType}-ws`; }
+
 }
 
