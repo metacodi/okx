@@ -311,6 +311,7 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
       case 'balance_and_position':
       // case 'positions':
       case 'orders':
+      case 'orders-algo':
         const obj = data as OkxWsChannelEvent;
         this.emitChannelEvent(obj);
         break;
@@ -412,8 +413,10 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
 
   protected registerChannelSubscription(args: OkxWsSubscriptionArguments | OkxWsSubscriptionArguments[]) {
     if (!Array.isArray(args)) { args = [args] };
-    const channelKey = args.map(a => Object.keys(a).map(key => a[key]).join('#')).find(chKey => !!this.emitters[chKey]);
-    if (channelKey) { return this.emitters[channelKey]; }
+    // Ex: channelKey = 'orders#SWAP;orders-algo#SWAP'
+    const channelKey = args.map(arg => this.buildArgKey(arg)).join(';');
+    const stored = this.emitters[channelKey]
+    if (stored) { return stored; }
     const created = new Subject<any>();
     this.emitters[channelKey] = created;
     this.subArguments[channelKey] = args;
@@ -440,7 +443,8 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
   protected emitChannelEvent(ev: OkxWsChannelEvent) {
     // NOTA: Eliminem l'identificador d'usuari que OKX ha afegit a la resposta per fer coincidir la channelKey.
     delete ev.arg.uid;
-    const channelKey = Object.keys(ev.arg).map(key => ev.arg[key]).join('#');
+    const argKey = this.buildArgKey(ev.arg);
+    const channelKey = Object.keys(this.subArguments).find(key => !!this.subArguments[key].find(arg => this.buildArgKey(arg) === argKey))
     const stored = this.emitters[channelKey];
     if (!stored) { return; }
     const hasSubscriptions = !this.isSubjectUnobserved(stored);
@@ -455,6 +459,8 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
       delete this.subArguments[channelKey];
     }
   }
+
+  protected buildArgKey = (arg: OkxWsSubscriptionArguments): string => { return Object.keys(arg).map(key => arg[key]).join('#'); }
 
   protected getChannelParser(arg: OkxWsSubscriptionArguments) {
     console.log('getChannelParser => ', arg);
