@@ -1,12 +1,9 @@
 import { ApiOptions } from '@metacodi/abstract-exchange';
 
 import { OkxApi } from "./okx-api";
-import { OkxInstrumentType } from './types/okx.types';
 
 
 export class OkxApiFunctions extends OkxApi {
-
-  instrument: OkxInstrumentType = 'SPOT';
 
   constructor(
     options?: ApiOptions,
@@ -31,12 +28,12 @@ export class OkxApiFunctions extends OkxApi {
 
   /** {@link https://www.okx.com/docs-v5/en/#rest-api-public-data-get-instruments Get instruments} */
   getInstruments(): Promise<any[]> {
-    return this.get(`api/v5/public/instruments?instType=${this.instrument}`, { isPublic: true });
+    return this.get(`api/v5/public/instruments?instType=${this.okxMarket}`, { isPublic: true });
   }
 
   /** {@link https://www.okx.com/docs-v5/en/#rest-api-public-data-get-instruments Get instruments} */
   getSymbolInformation(symbol: string): Promise<any> {
-    return this.get(`api/v5/public/instruments?instType=${this.instrument}&instId=${symbol}`, { isPublic: true });
+    return this.get(`api/v5/public/instruments?instType=${this.okxMarket}&instId=${symbol}`, { isPublic: true });
   }
 
   /** {@link https://www.okx.com/docs-v5/en/#rest-api-public-data-get-limit-price Get limit price} */
@@ -46,7 +43,7 @@ export class OkxApiFunctions extends OkxApi {
 
   /** {@link https://www.okx.com/docs-v5/en/#rest-api-public-data-get-mark-price Get mark price} */
   async getMarketPrice(symbol: string): Promise<any> {
-    const results = await this.get(`api/v5/public/mark-price?instType=${this.instrument}&instId=${symbol}`, { isPublic: true }) as { code: string; data: any };
+    const results = await this.get(`api/v5/public/mark-price?instType=${this.okxMarket}&instId=${symbol}`, { isPublic: true }) as { code: string; data: any };
     if (results.code === '0') { return results.data; }
     return Promise.reject(results);
   }
