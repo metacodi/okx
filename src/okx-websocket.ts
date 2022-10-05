@@ -311,6 +311,7 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
       case 'balance_and_position':
       // case 'positions':
       case 'orders':
+      case 'orders-algo':
         this.emitChannelEvent(data);
         break;
       default:
@@ -396,6 +397,14 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
     return this.registerChannelSubscription({ channel, instType, ...uly });
   }
 
+  /** {@link https://www.okx.com/docs-v5/en/#websocket-api-private-channel-algo-orders-channel Algo orders channel} */
+  orderAlgoUpdate(symbol?: SymbolType): Subject<Order> {
+    const channel: OkxWsChannelType = 'orders-algo';
+    const instType = this.okxMarket;
+    const uly = symbol ? { uly: formatSymbol(symbol) } : undefined;
+    return this.registerChannelSubscription({ channel, instType, ...uly });
+  }
+
   // /** {@link https://www.okx.com/docs-v5/en/#websocket-api-private-channel-position-risk-warning Position risk warning} */
   // positionRiskWarnig(symbol?: SymbolType): Subject<any> {
   //   const channel: OkxWsChannelType = 'liquidation-warning';
@@ -438,9 +447,8 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
 
   protected emitChannelEvent(obj: { arg: OkxWsSubscriptionArguments } & { data: any[] }) {
     const args = obj.arg;
-    // const channelKey = Object.keys(args).map(key => args[key]).join('#');
+    delete args.uid;
     const channelKey = Object.keys(args).map(key => args[key]).join('#');
-    // const channelKey = args['channel'] + '#' + args['instType'];
     const stored = this.emitters[channelKey];
     if (!stored) { return; }
     const hasSubscriptions = !this.isSubjectUnobserved(stored);
@@ -464,6 +472,7 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
       case 'account': return parseAccountUpdateEvent;
       case 'balance_and_position': return parseBalancePositionUpdateEvent;
       case 'orders': return parseOrderUpdateEvent;
+      case 'orders-algo': return parseOrderUpdateEvent;
       default: return undefined;
     }
   }

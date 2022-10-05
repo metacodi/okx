@@ -51,9 +51,10 @@ const testMarketWs = async () => {
     // const accountUpdate = ws.accountUpdate('BTC').subscribe(data => console.log('accountUpdate =>', data));
     // const accountETH = ws.accountUpdate({ ccy: 'ETH'}).subscribe(data => console.log('accountUpdate ETH =>', data));
     // const positionsUpdate = ws.positionsUpdate({ instType: 'SWAP'}).subscribe(data => console.log('positionsUpdate =>', data));
-    // const balancePositioUpdate = ws.balancePositioUpdate().subscribe(data => console.log('balancePositioUpdate =>', data));
+    // const balancePositioUpdate = ws.balancePositionUpdate().subscribe(data => console.log('balancePositionUpdate =>', data));
 
     const orderUpdate = ws.orderUpdate().subscribe(data => console.log('orderUpdate =>', data));
+    const orderAlgoUpdate = ws.orderAlgoUpdate().subscribe(data => console.log('orderAlgoUpdate =>', data));
     // const orderUpdate = ws.orderUpdate('BTC_USDT').subscribe(data => console.log('orderUpdate =>', data));
     // const orderUpdate = ws.orderUpdate({ instType: 'SWAP'}).subscribe(data => console.log('orderUpdate =>', data));
     // const orderUpdateSPOT = ws.orderUpdate({ instType: 'SPOT'}).subscribe(data => console.log('orderUpdate =>', data));

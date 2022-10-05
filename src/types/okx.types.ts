@@ -35,7 +35,7 @@ export type OkxOrderType =
 //  Websocket
 // ---------------------------------------------------------------------------------------------------
 
-export type OkxWsChannelType = 'tickers' | `candle${KlineIntervalType}` | 'account' | 'positions' | 'balance_and_position' | 'orders' | 'liquidation-warning';
+export type OkxWsChannelType = 'tickers' | `candle${KlineIntervalType}` | 'account' | 'positions' | 'balance_and_position' | 'orders' | 'orders-algo' | 'liquidation-warning';
 
 export type OkxWsEventType = 'login' | 'subscribe' | 'unsubscribe';
 

@@ -168,3 +168,8 @@ export const parseOrderUpdateEvent = (obj: OkxWsEvent): Order => {
   // };
 }
 
+/** {@link https://www.okx.com/docs-v5/en/#websocket-api-private-channel-algo-orders-channel Algo orders channel} */
+export const parseOrderAlgoUpdateEvent = (obj: OkxWsEvent): WsBalancePositionUpdate => {
+  console.log(obj);
+  return obj as any;
+}
