@@ -33,7 +33,7 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
   /** Identificador de login del servidor websocket. */
   protected loggedIn: boolean;
   /** Arguments per tornar a subscriure's al canal (respawn). */
-  protected argumets: { [key: string]: any } = {};
+  protected subArguments: { [key: string]: OkxWsSubscriptionArguments[] } = {};
   /** Identificador de connexió rebut del servidor websocket. */
   protected userId?: string;
 
@@ -391,20 +391,10 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
 
   /** {@link https://www.okx.com/docs-v5/en/#websocket-api-private-channel-order-channel Order channel} */
   orderUpdate(symbol?: SymbolType): Subject<Order> {
-    const channel: OkxWsChannelType = 'orders';
     const instType = this.okxMarket;
     const uly = symbol ? { uly: formatSymbol(symbol) } : undefined;
-    const subject = this.registerChannelSubscription([{ channel, instType, ...uly }, { channel: 'orders-algo', instType, ...uly }]);
-    // if (this.status === 'connected') { this.subscribeChannel({ channel: 'orders-algo', instType, ...uly }); }
+    const subject = this.registerChannelSubscription([{ channel: 'orders', instType, ...uly }, { channel: 'orders-algo', instType, ...uly }]);
     return subject;
-  }
-
-  /** {@link https://www.okx.com/docs-v5/en/#websocket-api-private-channel-algo-orders-channel Algo orders channel} */
-  orderAlgoUpdate(symbol?: SymbolType): Subject<Order> {
-    const channel: OkxWsChannelType = 'orders-algo';
-    const instType = this.okxMarket;
-    const uly = symbol ? { uly: formatSymbol(symbol) } : undefined;
-    return this.registerChannelSubscription({ channel, instType, ...uly });
   }
 
   // /** {@link https://www.okx.com/docs-v5/en/#websocket-api-private-channel-position-risk-warning Position risk warning} */
@@ -424,15 +414,10 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
     if (!Array.isArray(args)) { args = [args] };
     const channelKey = args.map(a => Object.keys(a).map(key => a[key]).join('#')).find(chKey => !!this.emitters[chKey]);
     if (channelKey) { return this.emitters[channelKey]; }
-    // const stored = this.emitters[channelKey];
-    // if (stored) { return stored; }
     const created = new Subject<any>();
     this.emitters[channelKey] = created;
-    this.argumets[channelKey] = args;
-    // console.log('Register new channel =>', channelKey);
-    if (this.status === 'connected') {
-      this.subscribeChannel(args);
-    }
+    this.subArguments[channelKey] = args;
+    if (this.status === 'connected') { args.map(a => this.subscribeChannel(a)); }
     return created;
   }
 
@@ -442,11 +427,12 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
       const stored = this.emitters[channelKey];
       const hasSubscriptions = !this.isSubjectUnobserved(stored);
       if (hasSubscriptions) {
-        const args = this.argumets[channelKey];
-        this.subscribeChannel(args);
+        const args = this.subArguments[channelKey];
+        args.map(a => this.subscribeChannel(a));
       } else {
         if (stored) { stored.complete(); }
         delete this.emitters[channelKey];
+        delete this.subArguments[channelKey];
       }
     });
   }
@@ -466,6 +452,7 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
       this.unsubscribeChannel(ev.arg);
       if (stored) { stored.complete(); }
       delete this.emitters[channelKey];
+      delete this.subArguments[channelKey];
     }
   }
 
