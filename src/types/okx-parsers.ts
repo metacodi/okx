@@ -1,9 +1,9 @@
 import moment, { unitOfTime } from 'moment';
 
-import { SymbolType, WsStreamType, MarketType, MarketPrice, MarketKline, calculateCloseTime, KlineIntervalType, Order, WsBalancePositionUpdate, WsAccountUpdate } from '@metacodi/abstract-exchange';
+import { SymbolType, WsStreamType, MarketType, MarketPrice, MarketKline, calculateCloseTime, KlineIntervalType, Order, WsBalancePositionUpdate, WsAccountUpdate, OrderSide, OrderType } from '@metacodi/abstract-exchange';
 import { timestamp } from '@metacodi/node-utils';
 
-import { OkxWsStreamType, OkxMarketType, OkxWsSubscriptionArguments, OkxWsEvent } from './okx.types';
+import { OkxWsStreamType, OkxMarketType, OkxWsSubscriptionArguments, OkxWsEvent, OkxOrderSide, OkxOrderType } from './okx.types';
 
 
 export const parseSymbol = (symbol: string): SymbolType => {
@@ -45,6 +45,38 @@ export const formatMarketType = (market: MarketType): OkxMarketType => {
     case 'futures': return 'SWAP';
     case 'margin': return 'MARGIN';
     default: throw ({ message: `No s'ha implementat el parser OKX pel market type '${market}'` });
+  }
+}
+
+export const parseOrderSide = (market: OkxOrderSide): OrderSide => {
+  switch (market) {
+    case 'buy': return 'buy';
+    case 'sell': return 'sell';
+    default: throw ({ message: `No s'ha implementat el parser OKX pel OrderSide type '${market}'` });
+  }
+}
+
+export const formatOrderSide = (market: OrderSide): OkxOrderSide => {
+  switch (market) {
+    case 'buy': return 'buy';
+    case 'sell': return 'sell';
+    default: throw ({ message: `No s'ha implementat el format OKX pel OrderSide type '${market}'` });
+  }
+}
+
+export const parseOrderType = (market: OkxOrderType): OrderType => {
+  switch (market) {
+    case 'market': return 'market';
+    case 'limit': return 'limit';
+    default: throw ({ message: `No s'ha implementat el parser OKX pel OrderType type '${market}'` });
+  }
+}
+
+export const formatOrderType = (market: OrderType): OkxOrderType => {
+  switch (market) {
+    case 'market': return 'market';
+    case 'limit': return 'limit';
+    default: throw ({ message: `No s'ha implementat el format OKX pel OrderSide type '${market}'` });
   }
 }
 
@@ -106,9 +138,33 @@ export const parseAccountUpdateEvent = (obj: OkxWsEvent): WsAccountUpdate => {
 export const parseBalancePositionUpdateEvent = (obj: OkxWsEvent): WsBalancePositionUpdate => {
   return obj as any;
 }
-  
+
 /** {@link https://www.okx.com/docs-v5/en/#websocket-api-private-channel-order-channel Order channel} */
 export const parseOrderUpdateEvent = (obj: OkxWsEvent): Order => {
+  console.log(obj);
+  // const data = obj.data[0];
   return obj as any;
+  // return {
+  //   id: data.clOrdId,
+  //   exchangeId: data.ordId,
+  //   side: parseOrderSide(data.side as OkxOrderSide),
+  //   type: OrderType;
+  //   status: OrderStatus;
+  //   symbol: SymbolType;
+  //   // baseQuantity ?: number;
+  //   // quoteQuantity ?: number;
+  //   // price ?: number;
+  //   // stopPrice ?: number;
+  //   // isOco ?: boolean;
+  //   // created ?: string;
+  //   // posted ?: string;
+  //   // executed ?: string;
+  //   // syncronized ?: boolean;
+  //   // idOrderBuyed ?: string;
+  //   // profit ?: number;
+  //   // commission ?: number;
+  //   // commissionAsset ?: CoinType;
+
+  // };
 }
 

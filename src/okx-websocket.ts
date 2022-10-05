@@ -3,23 +3,25 @@ import EventEmitter from 'events';
 import { Subject, interval, timer, Subscription } from 'rxjs';
 import { createHmac } from 'crypto';
 
-import { MarketType, SymbolType, MarketPrice, KlinesRequest, MarketKline, KlineIntervalType, Order, CoinType } from '@metacodi/abstract-exchange';
+import { MarketType, SymbolType, MarketPrice, KlinesRequest, MarketKline, KlineIntervalType, Order, CoinType, ApiOptions } from '@metacodi/abstract-exchange';
 import { ExchangeWebsocket, WebsocketOptions, WsStreamType, WsConnectionState, WsAccountUpdate, WsBalancePositionUpdate } from '@metacodi/abstract-exchange';
 
 import { OkxApi } from './okx-api';
 import { OkxMarketType, OkxWsSubscription, OkxWsSubscriptionArguments, OkxWsChannelType, OkxWsEventType } from './types/okx.types';
 import { formatMarketType, formatWsStreamType, parseSymbol, formatSymbol, parsePriceTickerEvent, parseKlineTickerEvent, parseAccountUpdateEvent, parseBalancePositionUpdateEvent, parseOrderUpdateEvent } from './types/okx-parsers';
+import { OkxApiFunctions } from './okx-api-function';
+
 
 
 export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
   /** Estat de la connexió. */
   status: WsConnectionState = 'initial';
+  /** Referència a la instància del client API. */
+  protected api: OkxApiFunctions;
   /** Opcions de configuració. */
   protected options: WebsocketOptions;
   /** Referència a la instància del websocket subjacent. */
   protected ws: WebSocket
-  /** Referència a la instància del client API. */
-  protected api: OkxApi;
   /** Subscripció al interval que envia un ping al servidor per mantenir viva la connexió.  */
   protected pingTimer?: Subscription;
   /** Subscriptor al timer que controla la resposta del servidor. */
@@ -32,6 +34,8 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
   protected loggedIn: boolean;
   /** Arguments per tornar a subscriure's al canal (respawn). */
   protected argumets: { [key: string]: any } = {};
+  /** Identificador de connexió rebut del servidor websocket. */
+  protected userId?: string;
 
   constructor(
     options: WebsocketOptions,
@@ -92,7 +96,27 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
     // TODO: Throw error if !wsInfo.
     const { pingInterval, pongTimeout, isTest } = this.options;
 
-    const url = !isTest ? `wss://ws.okx.com:8443/ws/v5/${wsType}` : `wss://wspap.okx.com:8443/ws/v5/${wsType}?brokerId=215489475109851136`;
+    // if (isTest) {
+    //   const options: ApiOptions = {
+    //     apiKey: this.apiKey,
+    //     apiSecret: this.apiSecret,
+    //     apiPassphrase: this.apiPassphrase,
+    //     market: this.market,
+    //     isTest,
+    //   } as any;
+  
+    //   // if (options.isTest) { setTestKeys(options, market); }
+  
+    //   this.api = new OkxApiFunctions(options);
+  
+    //   const config = await this.api.getAccountConfig();
+    //   console.log('config', config);
+    //   if (config !== undefined) { this.userId = config[0].data.uid; } else {  throw ({ message: `No s'ha pogut trobar la cofiguració de l'usuari` });}
+    // }
+
+    
+
+    const url = !isTest ? `wss://ws.okx.com:8443/ws/v5/${wsType}` : `wss://wspap.okx.com:8443/ws/v5/${wsType}?brokerId=${this.userId}`;
 
     // Ajustem els paràmetres segons el nou servidor.
     this.options.pingInterval = pingInterval || this.defaultOptions.pingInterval;
@@ -125,7 +149,7 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
     // Si no s'ha pogut importar la funció en entorn browser, li donem suport.
     const encoder = new TextEncoder();
     const keyData = encoder.encode(secret);
-    const algorithm = {name: 'HMAC', hash: {name: 'SHA-256'}};
+    const algorithm = { name: 'HMAC', hash: { name: 'SHA-256' } };
     const extractable = false;
     const keyUsages: KeyUsage[] = ['sign'];
     const key = await window.crypto.subtle.importKey('raw', keyData, algorithm, extractable, keyUsages);
@@ -192,7 +216,7 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
     const message = timestamp + 'GET' + '/users/self/verify';
     const signature = await this.signMessage(message, apiSecret);
     const data = { op: 'login', args: [{ apiKey, passphrase: apiPassphrase, timestamp, sign: signature }] };
-    console.log(`${this.wsId} =>`, data);
+    // console.log(`${this.wsId} =>`, data);
     this.ws.send(JSON.stringify(data));
   }
 
@@ -276,7 +300,6 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
   protected onWsMessage(event: WebSocket.MessageEvent) {
     const data = this.parseWsMessage(event);
     this.emit('message', data);
-    // console.log(data);
     switch (this.discoverEventType(data)) {
       case 'login':
         this.loggedIn = true;
@@ -312,7 +335,8 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
       if (obj.hasOwnProperty('event')) {
         return obj.event as OkxWsEventType;
       } else if (obj.hasOwnProperty('arg') && obj.arg.hasOwnProperty('channel')) {
-        const channel = obj.arg.channel.startsWith('candle') ? 'klines' : obj.args.channel;
+        
+        const channel = obj.arg.channel.startsWith('candle') ? 'klines' : obj.arg.channel;
         return channel;
       }
     }
@@ -349,7 +373,7 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
     const ccy = asset ? { ccy: asset } : undefined;
     return this.registerChannelSubscription({ channel, ...ccy });
   }
-  
+
   // /** {@link https://www.okx.com/docs-v5/en/#websocket-api-private-channel-positions-channel Positions channel} */
   // positionsUpdate(symbol?: SymbolType): Subject<any> {
   //   const channel: OkxWsChannelType = 'positions';
@@ -357,7 +381,7 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
   //   const uly = symbol ? { uly: formatSymbol(symbol) } : undefined;
   //   return this.registerChannelSubscription({ channel, instType, ...uly });
   // }
-  
+
   /** {@link https://www.okx.com/docs-v5/en/#websocket-api-private-channel-balance-and-position-channel Balance and position channel} */
   balancePositionUpdate(): Subject<WsBalancePositionUpdate> {
     const channel: OkxWsChannelType = 'balance_and_position';
@@ -414,7 +438,9 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
 
   protected emitChannelEvent(obj: { arg: OkxWsSubscriptionArguments } & { data: any[] }) {
     const args = obj.arg;
+    // const channelKey = Object.keys(args).map(key => args[key]).join('#');
     const channelKey = Object.keys(args).map(key => args[key]).join('#');
+    // const channelKey = args['channel'] + '#' + args['instType'];
     const stored = this.emitters[channelKey];
     if (!stored) { return; }
     const hasSubscriptions = !this.isSubjectUnobserved(stored);
@@ -429,8 +455,9 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
     }
   }
 
-  protected getChannelParser(args: OkxWsSubscriptionArguments) {
-    const channel = args.channel.startsWith('candle') ? 'klines' : args.channel;
+  protected getChannelParser(arg: OkxWsSubscriptionArguments) {
+    console.log('getChannelParser => ', arg);
+    const channel = arg.channel.startsWith('candle') ? 'klines' : arg.channel;
     switch (channel) {
       case 'tickers': return parsePriceTickerEvent;
       case 'klines': return parseKlineTickerEvent;

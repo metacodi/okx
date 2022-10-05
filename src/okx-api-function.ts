@@ -90,6 +90,14 @@ export class OkxApiFunctions extends OkxApi {
   //  Account
   // ---------------------------------------------------------------------------------------------------
 
+
+  /** {@link https://www.okx.com/docs-v5/en/#rest-api-account-get-account-configuration Get account configuration} */
+  async getAccountConfig(): Promise<any> {
+    const results = await this.get(`api/v5/account/config`) as { code: string; data: any };
+    if (results.code === '0') { return results.data; }
+    return Promise.reject(results);
+  }
+
   /** {@link https://www.okx.com/docs-v5/en/#rest-api-account-get-balance Get balance} */
   async getAccountOverview(ccy?: string): Promise<any> {
     ccy = ccy === undefined ? '' : ccy;

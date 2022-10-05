@@ -31,7 +31,7 @@ const testMarketWs = async () => {
 
     console.log('---------------- Market WebSocket TEST ----------------------');
 
-    const market: MarketType = 'futures';
+    const market: MarketType = 'spot';
     // const market: OkxMarketType = 'futures';
 
     const isTest = true;
@@ -48,18 +48,18 @@ const testMarketWs = async () => {
     // ws.addListener('message', msg => console.log('message =>', msg));
     
     // const accountUpdate = ws.accountUpdate().subscribe(data => console.log('accountUpdate =>', data));
-    const accountUpdate = ws.accountUpdate('BTC').subscribe(data => console.log('accountUpdate =>', data));
+    // const accountUpdate = ws.accountUpdate('BTC').subscribe(data => console.log('accountUpdate =>', data));
     // const accountETH = ws.accountUpdate({ ccy: 'ETH'}).subscribe(data => console.log('accountUpdate ETH =>', data));
     // const positionsUpdate = ws.positionsUpdate({ instType: 'SWAP'}).subscribe(data => console.log('positionsUpdate =>', data));
     // const balancePositioUpdate = ws.balancePositioUpdate().subscribe(data => console.log('balancePositioUpdate =>', data));
 
-    // const orderUpdate = ws.orderUpdate().subscribe(data => console.log('orderUpdate =>', data));
+    const orderUpdate = ws.orderUpdate().subscribe(data => console.log('orderUpdate =>', data));
     // const orderUpdate = ws.orderUpdate('BTC_USDT').subscribe(data => console.log('orderUpdate =>', data));
     // const orderUpdate = ws.orderUpdate({ instType: 'SWAP'}).subscribe(data => console.log('orderUpdate =>', data));
     // const orderUpdateSPOT = ws.orderUpdate({ instType: 'SPOT'}).subscribe(data => console.log('orderUpdate =>', data));
 
     // setTimeout(() => { console.log('Close...'); ws.close(); }, 120000);
-    setTimeout(() => { console.log('Test => Unsubscribe accountUpdate'); accountUpdate.unsubscribe(); }, 3000);
+    // setTimeout(() => { console.log('Test => Unsubscribe accountUpdate'); accountUpdate.unsubscribe(); }, 3000);
     // setTimeout(() => { console.log('Test => Unsubscribe orderUpdate'); orderUpdate.unsubscribe(); }, 3000);
 
   } catch (error) {
