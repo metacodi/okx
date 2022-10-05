@@ -7,7 +7,7 @@ import { MarketType, SymbolType, MarketPrice, KlinesRequest, MarketKline, KlineI
 import { ExchangeWebsocket, WebsocketOptions, WsStreamType, WsConnectionState, WsAccountUpdate, WsBalancePositionUpdate } from '@metacodi/abstract-exchange';
 
 import { OkxApi } from './okx-api';
-import { OkxMarketType, OkxWsSubscription, OkxWsSubscriptionArguments, OkxWsChannelType, OkxWsEventType } from './types/okx.types';
+import { OkxMarketType, OkxWsSubscriptionRequest, OkxWsSubscriptionArguments, OkxWsChannelType, OkxWsEventType, OkxWsChannelEvent, OkxWsLoginRequest } from './types/okx.types';
 import { formatMarketType, formatWsStreamType, parseSymbol, formatSymbol, parsePriceTickerEvent, parseKlineTickerEvent, parseAccountUpdateEvent, parseBalancePositionUpdateEvent, parseOrderUpdateEvent } from './types/okx-parsers';
 
 
@@ -92,7 +92,7 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
     // TODO: Throw error if !wsInfo.
     const { pingInterval, pongTimeout, isTest } = this.options;
 
-    const url = !isTest ? `wss://ws.okx.com:8443/ws/v5/${wsType}` : `wss://wspap.okx.com:8443/ws/v5/${wsType}?brokerId=215489475109851136`;
+    const url = !isTest ? `wss://ws.okx.com:8443/ws/v5/${wsType}` : `wss://wspap.okx.com:8443/ws/v5/${wsType}`;
 
     // Ajustem els paràmetres segons el nou servidor.
     this.options.pingInterval = pingInterval || this.defaultOptions.pingInterval;
@@ -189,9 +189,9 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
     this.status = 'login';
     this.loggedIn = false;
     const timestamp = Date.now() / 1000;
-    const message = timestamp + 'GET' + '/users/self/verify';
+    const message = `${timestamp}GET/users/self/verify`;
     const signature = await this.signMessage(message, apiSecret);
-    const data = { op: 'login', args: [{ apiKey, passphrase: apiPassphrase, timestamp, sign: signature }] };
+    const data: OkxWsLoginRequest = { op: 'login', args: [{ apiKey, passphrase: apiPassphrase, timestamp, sign: signature }] };
     console.log(`${this.wsId} =>`, data);
     this.ws.send(JSON.stringify(data));
   }
@@ -288,7 +288,8 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
       case 'balance_and_position':
       // case 'positions':
       case 'orders':
-        this.emitChannelEvent(data);
+        const obj = data as OkxWsChannelEvent;
+        this.emitChannelEvent(obj);
         break;
       default:
         console.log('onWsMessage =>', data);
@@ -312,7 +313,8 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
       if (obj.hasOwnProperty('event')) {
         return obj.event as OkxWsEventType;
       } else if (obj.hasOwnProperty('arg') && obj.arg.hasOwnProperty('channel')) {
-        const channel = obj.arg.channel.startsWith('candle') ? 'klines' : obj.args.channel;
+        const ev = obj as OkxWsChannelEvent;
+        const channel = ev.arg.channel.startsWith('candle') ? 'klines' : ev.arg.channel;
         return channel;
       }
     }
@@ -412,25 +414,26 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
     });
   }
 
-  protected emitChannelEvent(obj: { arg: OkxWsSubscriptionArguments } & { data: any[] }) {
-    const args = obj.arg;
-    const channelKey = Object.keys(args).map(key => args[key]).join('#');
+  protected emitChannelEvent(ev: OkxWsChannelEvent) {
+    // NOTA: Eliminem l'identificador d'usuari que OKX ha afegit a la resposta per fer coincidir la channelKey.
+    delete ev.arg.uid;
+    const channelKey = Object.keys(ev.arg).map(key => ev.arg[key]).join('#');
     const stored = this.emitters[channelKey];
     if (!stored) { return; }
     const hasSubscriptions = !this.isSubjectUnobserved(stored);
     if (hasSubscriptions) {
-      const parser = this.getChannelParser(args);
-      const value = parser ? parser(obj) : obj;
+      const parser = this.getChannelParser(ev.arg);
+      const value = parser ? parser(ev) : ev;
       stored.next(value);
     } else {
-      this.unsubscribeChannel(args);
+      this.unsubscribeChannel(ev.arg);
       if (stored) { stored.complete(); }
       delete this.emitters[channelKey];
     }
   }
 
-  protected getChannelParser(args: OkxWsSubscriptionArguments) {
-    const channel = args.channel.startsWith('candle') ? 'klines' : args.channel;
+  protected getChannelParser(arg: OkxWsSubscriptionArguments) {
+    const channel = arg.channel.startsWith('candle') ? 'klines' : arg.channel;
     switch (channel) {
       case 'tickers': return parsePriceTickerEvent;
       case 'klines': return parseKlineTickerEvent;
@@ -445,15 +448,15 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
     return !emitter || emitter.closed || !emitter.observers?.length;
   }
 
-  protected subscribeChannel(args: OkxWsSubscriptionArguments) {
-    const data: OkxWsSubscription = { op: "subscribe", args: [args] };
+  protected subscribeChannel(arg: OkxWsSubscriptionArguments) {
+    const data: OkxWsSubscriptionRequest = { op: "subscribe", args: [arg] };
     console.log(this.wsId, '=> subscribing...', JSON.stringify(data));
     this.ws.send(JSON.stringify(data), error => error ? this.onWsError(error as any) : undefined);
   }
 
-  protected unsubscribeChannel(args: OkxWsSubscriptionArguments) {
-    console.log(this.wsId, '=> unsubscribing...', args);
-    const data: any = { op: "unsubscribe", args: [args] };
+  protected unsubscribeChannel(arg: OkxWsSubscriptionArguments) {
+    console.log(this.wsId, '=> unsubscribing...', arg);
+    const data: OkxWsSubscriptionRequest = { op: "unsubscribe", args: [arg] };
     this.ws.send(JSON.stringify(data), error => error ? this.onWsError(error as any) : undefined);
   }
 

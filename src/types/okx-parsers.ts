@@ -3,7 +3,7 @@ import moment, { unitOfTime } from 'moment';
 import { SymbolType, WsStreamType, MarketType, MarketPrice, MarketKline, calculateCloseTime, KlineIntervalType, Order, WsBalancePositionUpdate, WsAccountUpdate } from '@metacodi/abstract-exchange';
 import { timestamp } from '@metacodi/node-utils';
 
-import { OkxWsStreamType, OkxMarketType, OkxWsSubscriptionArguments, OkxWsEvent } from './okx.types';
+import { OkxWsStreamType, OkxMarketType, OkxWsSubscriptionArguments, OkxWsChannelEvent } from './okx.types';
 
 
 export const parseSymbol = (symbol: string): SymbolType => {
@@ -54,12 +54,12 @@ export const formatMarketType = (market: MarketType): OkxMarketType => {
 // ---------------------------------------------------------------------------------------------------
 
 /** {@link https://www.okx.com/docs-v5/en/#websocket-api-public-channel-tickers-channel Tickers channel} */
-export const parsePriceTickerEvent = (obj: OkxWsEvent): MarketPrice => {
+export const parsePriceTickerEvent = (ev: OkxWsChannelEvent): MarketPrice => {
   // Ex: instId = 'BTC-USDT-SWAP'.
-  const instId: string[] = obj.arg.instId.split('-');
+  const instId: string[] = ev.arg.instId.split('-');
   const market = parseMarketType(instId.pop() as OkxMarketType);
   const symbol = parseSymbol(instId.join('-'));
-  const data = obj.data[0];
+  const data = ev.data[0];
   const baseVolume = market === 'futures' ? +data.volCcy24h : +data.volCcy24h / +data.last;
   const quoteVolume = market === 'futures' ? +data.volCcy24h * +data.last : +data.volCcy24h;
   return {
@@ -71,13 +71,13 @@ export const parsePriceTickerEvent = (obj: OkxWsEvent): MarketPrice => {
 }
 
 /** {@link https://www.okx.com/docs-v5/en/#websocket-api-public-channel-candlesticks-channel Candlesticks channel} */
-export const parseKlineTickerEvent = (obj: OkxWsEvent): MarketKline => {
+export const parseKlineTickerEvent = (ev: OkxWsChannelEvent): MarketKline => {
   // Ex: instId = 'BTC-USDT-SWAP'.
-  const instId: string[] = obj.arg.instId.split('-');
+  const instId: string[] = ev.arg.instId.split('-');
   const market = parseMarketType(instId.pop() as OkxMarketType);
   const symbol = parseSymbol(instId.join('-'));
-  const data = obj.data[0];
-  const interval = obj.arg.channel.replace('candle', '') as KlineIntervalType;
+  const data = ev.data[0];
+  const interval = ev.arg.channel.replace('candle', '') as KlineIntervalType;
   const openTime = timestamp(moment(+data[0]));
   const closeTime = calculateCloseTime(openTime, interval);
   const baseVolume = market === 'futures' ? +data[6] : +data[6] / +data[4];
@@ -98,17 +98,17 @@ export const parseKlineTickerEvent = (obj: OkxWsEvent): MarketKline => {
 // ---------------------------------------------------------------------------------------------------
 
 /** {@link https://www.okx.com/docs-v5/en/#websocket-api-private-channel-account-channel Account channel} */
-export const parseAccountUpdateEvent = (obj: OkxWsEvent): WsAccountUpdate => {
+export const parseAccountUpdateEvent = (obj: OkxWsChannelEvent): WsAccountUpdate => {
   return obj as any;
 }
 
 /** {@link https://www.okx.com/docs-v5/en/#websocket-api-private-channel-balance-and-position-channel Balance and position channel} */
-export const parseBalancePositionUpdateEvent = (obj: OkxWsEvent): WsBalancePositionUpdate => {
+export const parseBalancePositionUpdateEvent = (obj: OkxWsChannelEvent): WsBalancePositionUpdate => {
   return obj as any;
 }
   
 /** {@link https://www.okx.com/docs-v5/en/#websocket-api-private-channel-order-channel Order channel} */
-export const parseOrderUpdateEvent = (obj: OkxWsEvent): Order => {
+export const parseOrderUpdateEvent = (obj: OkxWsChannelEvent): Order => {
   return obj as any;
 }
 

@@ -32,14 +32,26 @@ export type OkxWsChannelType = 'tickers' | `candle${KlineIntervalType}` | 'accou
 
 export type OkxWsEventType = 'login' | 'subscribe' | 'unsubscribe';
 
+export interface OkxWsLoginRequest {
+  op: 'login',
+  args: [
+    {
+      apiKey: string;
+      passphrase: string;
+      timestamp: number,
+      sign: string;
+    }
+  ]
+}
+
+export interface OkxWsSubscriptionRequest {
+  op: 'subscribe' | 'unsubscribe';
+  args: [ OkxWsSubscriptionArguments ];
+}
+
+export type OkxWsChannelEvent = { arg: OkxWsSubscriptionArguments } & { data: any[] };
+
 export interface OkxWsSubscriptionArguments {
   channel: OkxWsChannelType;
   [key: string]: any;
 }
-
-export interface OkxWsSubscription {
-  op: 'subscribe' | 'unsubscribe';
-  args: [OkxWsSubscriptionArguments];
-}
-
-export type OkxWsEvent = { arg: OkxWsSubscriptionArguments } & { data: any[] };
