@@ -1,6 +1,6 @@
 import moment, { unitOfTime } from 'moment';
 
-import { SymbolType, WsStreamType, MarketType, MarketPrice, MarketKline, calculateCloseTime, KlineIntervalType, OrderEvent, WsBalancePositionUpdate, WsAccountUpdate } from '@metacodi/abstract-exchange';
+import { SymbolType, WsStreamType, MarketType, MarketPrice, MarketKline, calculateCloseTime, KlineIntervalType, Order, WsBalancePositionUpdate, WsAccountUpdate } from '@metacodi/abstract-exchange';
 import { timestamp } from '@metacodi/node-utils';
 
 import { OkxWsStreamType, OkxMarketType, OkxWsSubscriptionArguments, OkxWsEvent } from './okx.types';
@@ -99,16 +99,16 @@ export const parseKlineTickerEvent = (obj: OkxWsEvent): MarketKline => {
 
 /** {@link https://www.okx.com/docs-v5/en/#websocket-api-private-channel-account-channel Account channel} */
 export const parseAccountUpdateEvent = (obj: OkxWsEvent): WsAccountUpdate => {
-  return;
+  return obj as any;
 }
 
 /** {@link https://www.okx.com/docs-v5/en/#websocket-api-private-channel-balance-and-position-channel Balance and position channel} */
 export const parseBalancePositionUpdateEvent = (obj: OkxWsEvent): WsBalancePositionUpdate => {
-  return;
+  return obj as any;
 }
   
 /** {@link https://www.okx.com/docs-v5/en/#websocket-api-private-channel-order-channel Order channel} */
-export const parseOrderUpdateEvent = (obj: OkxWsEvent): OrderEvent => {
-  return;
+export const parseOrderUpdateEvent = (obj: OkxWsEvent): Order => {
+  return obj as any;
 }
 

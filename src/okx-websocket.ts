@@ -3,7 +3,7 @@ import EventEmitter from 'events';
 import { Subject, interval, timer, Subscription } from 'rxjs';
 import { createHmac } from 'crypto';
 
-import { MarketType, SymbolType, MarketPrice, KlinesRequest, MarketKline, KlineIntervalType, OrderEvent, CoinType } from '@metacodi/abstract-exchange';
+import { MarketType, SymbolType, MarketPrice, KlinesRequest, MarketKline, KlineIntervalType, Order, CoinType } from '@metacodi/abstract-exchange';
 import { ExchangeWebsocket, WebsocketOptions, WsStreamType, WsConnectionState, WsAccountUpdate, WsBalancePositionUpdate } from '@metacodi/abstract-exchange';
 
 import { OkxApi } from './okx-api';
@@ -365,7 +365,7 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
   }
 
   /** {@link https://www.okx.com/docs-v5/en/#websocket-api-private-channel-order-channel Order channel} */
-  orderUpdate(symbol?: SymbolType): Subject<OrderEvent> {
+  orderUpdate(symbol?: SymbolType): Subject<Order> {
     const channel: OkxWsChannelType = 'orders';
     const instType = this.okxMarket;
     const uly = symbol ? { uly: formatSymbol(symbol) } : undefined;
