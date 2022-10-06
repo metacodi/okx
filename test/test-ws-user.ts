@@ -54,7 +54,6 @@ const testMarketWs = async () => {
     // const balancePositioUpdate = ws.balancePositionUpdate().subscribe(data => console.log('balancePositionUpdate =>', data));
 
     const orderUpdate = ws.orderUpdate().subscribe(data => console.log('orderUpdate =>', data));
-    // const orderAlgoUpdate = ws.orderAlgoUpdate().subscribe(data => console.log('orderAlgoUpdate =>', data));
     // const orderUpdate = ws.orderUpdate('BTC_USDT').subscribe(data => console.log('orderUpdate =>', data));
     // const orderUpdate = ws.orderUpdate({ instType: 'SWAP'}).subscribe(data => console.log('orderUpdate =>', data));
     // const orderUpdateSPOT = ws.orderUpdate({ instType: 'SPOT'}).subscribe(data => console.log('orderUpdate =>', data));

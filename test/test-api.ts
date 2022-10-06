@@ -124,8 +124,9 @@ const testApi = async () => {
     // ---------------------------------------------------------------------------------------------------
 
 
-    // console.log('postOrder() =>', await api.postOrder('BTG-USDT', 'cash', 'sell', 'market', 0.73167092, { clOrdId: '010779' }));
+    // console.log('postOrder() =>', await api.postOrder('BTG-USDT-SWAP', 'cash', 'sell', 'market', 0.73167092, { clOrdId: '010779' }));
     // console.log('postOrder() =>', await api.postOrder('BTC-USDT-SWAP', 'isolated', 'buy', 'market', 1000, { clOrdId: '010779' }));
+    // console.log('postOrder() =>', await api.postOrder('BTC-USDT-SWAP', 'isolated', 'buy', 'limit', 10, { clOrdId: '010779', px: '19000' }));
     // console.log('postOrder() =>', await api.postOrder('BTC-USDT-SWAP', 'isolated', 'sell', 'market', 200, { clOrdId: '010777' }));
     // console.log('cancelOrder() =>', await api.cancelOrder('BTC-USDT-SWAP', { ordId: '497214683267596288' }));
     // console.log('closePosition() =>', await api.closePosition('BTC-USDT-SWAP', 'isolated'));
@@ -154,17 +155,17 @@ const testApi = async () => {
     // })
 
 
-    // api.getAccountOverview().then((resp: any) => {
-    //   const details = resp[0].details;
-    //   const found = details.find((c: any) => c.ccy === 'BTG');
-    //   if (found) {
-    //     // console.log(found);
-    //     api.fundsTransfer('BTG', found.cashBal, '18', '6').then((resptransfer: any) => {
-    //       console.log(resptransfer);
+    api.getAccountOverview().then((resp: any) => {
+      const details = resp[0].details;
+      const found = details.find((c: any) => c.ccy === 'USDT');
+      if (found) {
+        // console.log(found);
+        api.fundsTransfer('USDT', found.cashBal, '18', '6').then((resptransfer: any) => {
+          console.log(resptransfer);
 
-    //     });
-    //   }
-    // })
+        });
+      }
+    })
 
 
 
