@@ -14,6 +14,18 @@ export const formatSymbol = (symbol: SymbolType): string => {
   return symbol.replace('_', '-') as SymbolType;
 }
 
+export const parseKlineInterval = (interval: string): KlineIntervalType => {
+  const unit = interval.charAt(interval.length - 1);
+  if (['H', 'D', 'W', 'Y'].includes(unit)) { interval = interval.toLocaleLowerCase(); }
+  return interval.replace('-', '_') as KlineIntervalType;
+}
+
+export const formatKlineInterval = (interval: KlineIntervalType): string => {
+  const unit = interval.charAt(interval.length - 1) as unitOfTime.DurationConstructor;
+  if (['h', 'd', 'w', 'y'].includes(unit)) { interval = interval.toLocaleUpperCase() as any; }
+  return interval;
+}
+
 export const parseWsStreamType = (stream: OkxWsStreamType): WsStreamType => {
   switch (stream) {
     case 'public': return 'market';
@@ -122,6 +134,24 @@ export const parseKlineTickerEvent = (ev: OkxWsChannelEvent): MarketKline => {
     close: +data[4],
     baseVolume, quoteVolume,
   }
+}
+
+/** {@link https://www.okx.com/docs-v5/en/#rest-api-market-data-get-candlesticks-history Get candlesticks history} */
+export const parseKlinesResults = (interval: KlineIntervalType, market: MarketType, symbol: SymbolType, response: any): MarketKline[] => {
+  return (response.data as any[]).map(data => {
+    const openTime = timestamp(moment(+data[0]));
+    const closeTime = calculateCloseTime(openTime, interval);
+    const baseVolume = market === 'futures' ? +data[6] : +data[6] / +data[4];
+    const quoteVolume = market === 'futures' ? +data[6] * +data[4] : +data[6];
+    return {
+      symbol, openTime, closeTime, interval,
+      open: +data[1],
+      high: +data[2],
+      low: +data[3],
+      close: +data[4],
+      baseVolume, quoteVolume,
+    }    
+  });
 }
 
 

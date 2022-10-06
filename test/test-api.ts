@@ -2,11 +2,13 @@ import moment from 'moment';
 import { interval } from 'rxjs';
 import * as fs from 'fs';
 
-import { Resource } from '@metacodi/node-utils';
-import { ApiOptions } from '@metacodi/abstract-exchange';
+import { Resource, timestamp } from '@metacodi/node-utils';
+import { ApiOptions, MarketType } from '@metacodi/abstract-exchange';
 
 import { OkxApiFunctions } from '../src/okx-api-function';
 import { getApiKeys } from './api-keys';
+import { OkxApi } from '../src/okx-api';
+import { Limit } from '../../abstract-exchange/dist/abstract/task-executor';
 
 
 /**
@@ -31,19 +33,32 @@ const testApi = async () => {
 
     console.log('---------------- API TEST ----------------------');
 
+    // const market: MarketType = 'spot';
+    const market: MarketType = 'futures';
+
     const isTest = false;
 
     const options: ApiOptions = {
       ...getApiKeys({ isTest }),
-      market: 'futures',
+      market,
       isTest,
     } as any;
 
     // if (options.isTest) { setTestKeys(options, market); }
 
-    const api = new OkxApiFunctions(options);
+    // const api = new OkxApiFunctions(options);
+    const api = new OkxApi(options);
+    
+    // ---------------------------------------------------------------------------------------------------
+    //  ExchangeApi
+    // ---------------------------------------------------------------------------------------------------
 
-    // api.marketName = 'SWAP';
+    // console.log('getPriceTicker() =>', await api.getPriceTicker('BTC_USDT'));
+
+    // const results = await api.getKlines({ symbol: 'BTC_USDT', interval: '4h' });
+    // const results = await api.getKlines({ symbol: 'BTC_USDT', interval: '30m', limit: 5, start: timestamp('2022-10-05 10:00'), end: timestamp('2022-10-01 09:30') });
+    // const results = await api.getKlines({ symbol: 'BTC_USDT', interval: '30m', limit: 220 });
+    // console.log('getKlines() =>', { results: results.length, start: results[0], end: results[results.length - 1] });
 
     // ---------------------------------------------------------------------------------------------------
     //  Public Data
