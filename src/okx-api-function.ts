@@ -171,11 +171,15 @@ export class OkxApiFunctions extends OkxApi {
   // ---------------------------------------------------------------------------------------------------
 
   /** {@link https://www.okx.com/docs-v5/en/#rest-api-trade-place-order Place order} */
-  async postOrder(instId: string, tdMode: string, side: string, ordType: string, sz: number, options?: { ccy?: string, clOrdId?: string, posSide?: string }): Promise<any> {
+  async postOrder(instId: string, tdMode: string, side: string, ordType: string, sz: number, options?: { ccy?: string, clOrdId?: string, posSide?: string, px?: string, reduceOnly?: boolean, tgtCcy?: string, banAmend?: boolean }): Promise<any> {
     let params = { instId, tdMode, side, ordType, sz };
     params = options?.ccy === undefined ? params : { ...params, ...{ ccy: options.ccy } };
     params = options?.clOrdId === undefined ? params : { ...params, ...{ clOrdId: options.clOrdId } };
     params = options?.posSide === undefined ? params : { ...params, ...{ posSide: options.posSide } };
+    params = options?.px === undefined ? params : { ...params, ...{ px: options.px } };
+    params = options?.reduceOnly === undefined ? params : { ...params, ...{ reduceOnly: options.reduceOnly } };
+    params = options?.tgtCcy === undefined ? params : { ...params, ...{ tgtCcy: options.tgtCcy } };
+    params = options?.banAmend === undefined ? params : { ...params, ...{ banAmend: options.banAmend } };
     const results = await this.post(`api/v5/trade/order`, { params }) as { code: string; data: any };
     if (results.code === '0') { return results.data; }
     return Promise.reject(results);
