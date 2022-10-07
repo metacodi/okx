@@ -3,7 +3,7 @@ import EventEmitter from 'events';
 import { Subject, interval, timer, Subscription } from 'rxjs';
 import { createHmac } from 'crypto';
 
-import { MarketType, SymbolType, MarketPrice, KlinesRequest, MarketKline, KlineIntervalType, Order, CoinType, ApiOptions } from '@metacodi/abstract-exchange';
+import { MarketType, SymbolType, MarketPrice, KlinesRequest, MarketKline, KlineIntervalType, Order, CoinType, ApiOptions, isSubjectUnobserved, matchChannelKey, buildChannelKey } from '@metacodi/abstract-exchange';
 import { ExchangeWebsocket, WebsocketOptions, WsStreamType, WsConnectionState, WsAccountUpdate, WsBalancePositionUpdate } from '@metacodi/abstract-exchange';
 
 import { OkxApi } from './okx-api';
@@ -414,7 +414,7 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
   protected registerChannelSubscription(args: OkxWsSubscriptionArguments | OkxWsSubscriptionArguments[]) {
     if (!Array.isArray(args)) { args = [args] };
     // Ex: channelKey = 'orders#SWAP;orders-algo#SWAP'
-    const channelKey = args.map(arg => this.buildArgKey(arg)).join(';');
+    const channelKey = args.map(arg => buildChannelKey(arg)).join(';');
     const stored = this.emitters[channelKey]
     if (stored) { return stored; }
     const created = new Subject<any>();
@@ -428,7 +428,7 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
     const topics: string[] = [];
     Object.keys(this.emitters).map(channelKey => {
       const stored = this.emitters[channelKey];
-      const hasSubscriptions = !this.isSubjectUnobserved(stored);
+      const hasSubscriptions = !isSubjectUnobserved(stored);
       if (hasSubscriptions) {
         const args = this.subArguments[channelKey];
         args.map(a => this.subscribeChannel(a));
@@ -443,11 +443,10 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
   protected emitChannelEvent(ev: OkxWsChannelEvent) {
     // NOTA: Eliminem l'identificador d'usuari que l'exchange ha afegit a la resposta per fer coincidir la channelKey.
     delete ev.arg.uid;
-    const argKey = this.buildArgKey(ev.arg);
-    const channelKey = Object.keys(this.subArguments).find(key => !!this.subArguments[key].find(arg => this.buildArgKey(arg) === argKey))
+    const channelKey = Object.keys(this.subArguments).find(key => !!this.subArguments[key].find(arg => matchChannelKey(arg, ev.arg)));
     const stored = this.emitters[channelKey];
     if (!stored) { return; }
-    const hasSubscriptions = !this.isSubjectUnobserved(stored);
+    const hasSubscriptions = !isSubjectUnobserved(stored);
     if (hasSubscriptions) {
       const parser = this.getChannelParser(ev.arg);
       const value = parser ? parser(ev) : ev;
@@ -459,8 +458,6 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
       delete this.subArguments[channelKey];
     }
   }
-
-  protected buildArgKey = (arg: OkxWsSubscriptionArguments): string => { return Object.keys(arg).map(key => arg[key]).join('#'); }
 
   protected getChannelParser(arg: OkxWsSubscriptionArguments) {
     console.log('getChannelParser => ', arg);
@@ -474,10 +471,6 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
       case 'orders-algo': return parseOrderUpdateEvent;
       default: return undefined;
     }
-  }
-
-  protected isSubjectUnobserved(emitter: Subject<any>): boolean {
-    return !emitter || emitter.closed || !emitter.observers?.length;
   }
 
   protected subscribeChannel(arg: OkxWsSubscriptionArguments) {
