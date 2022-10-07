@@ -5,10 +5,8 @@ import * as fs from 'fs';
 import { Resource, timestamp } from '@metacodi/node-utils';
 import { ApiOptions, MarketType } from '@metacodi/abstract-exchange';
 
-import { OkxApiFunctions } from '../src/okx-api-function';
 import { getApiKeys } from './api-keys';
 import { OkxApi } from '../src/okx-api';
-import { Limit } from '../../abstract-exchange/dist/abstract/task-executor';
 
 
 /**
@@ -155,17 +153,17 @@ const testApi = async () => {
     // })
 
 
-    api.getAccountOverview().then((resp: any) => {
-      const details = resp[0].details;
-      const found = details.find((c: any) => c.ccy === 'USDT');
-      if (found) {
-        // console.log(found);
-        api.fundsTransfer('USDT', found.cashBal, '18', '6').then((resptransfer: any) => {
-          console.log(resptransfer);
+    // api.getAccountOverview().then((resp: any) => {
+    //   const details = resp[0].details;
+    //   const found = details.find((c: any) => c.ccy === 'USDT');
+    //   if (found) {
+    //     // console.log(found);
+    //     api.fundsTransfer('USDT', found.cashBal, '18', '6').then((resptransfer: any) => {
+    //       console.log(resptransfer);
 
-        });
-      }
-    })
+    //     });
+    //   }
+    // })
 
 
 

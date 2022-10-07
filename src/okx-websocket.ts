@@ -441,7 +441,7 @@ export class OkxWebsocket extends EventEmitter implements ExchangeWebsocket {
   }
 
   protected emitChannelEvent(ev: OkxWsChannelEvent) {
-    // NOTA: Eliminem l'identificador d'usuari que OKX ha afegit a la resposta per fer coincidir la channelKey.
+    // NOTA: Eliminem l'identificador d'usuari que l'exchange ha afegit a la resposta per fer coincidir la channelKey.
     delete ev.arg.uid;
     const argKey = this.buildArgKey(ev.arg);
     const channelKey = Object.keys(this.subArguments).find(key => !!this.subArguments[key].find(arg => this.buildArgKey(arg) === argKey))

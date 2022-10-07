@@ -11,7 +11,7 @@ export const parseSymbol = (symbol: string): SymbolType => {
 }
 
 export const formatSymbol = (symbol: SymbolType): string => {
-  return symbol.replace('_', '-') as SymbolType;
+  return symbol.replace('_', '-');
 }
 
 export const parseKlineInterval = (interval: string): KlineIntervalType => {
