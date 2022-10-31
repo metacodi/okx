@@ -51,7 +51,7 @@ const testApi = async () => {
     //  ExchangeApi
     // ---------------------------------------------------------------------------------------------------
 
-    // console.log('getPriceTicker() =>', await api.getPriceTicker('BTC_USDT'));
+    console.log('getPriceTicker() =>', await api.getPriceTicker('BTC_USDT'));
 
     // const results = await api.getKlines({ symbol: 'BTC_USDT', interval: '4h' });
     // const results = await api.getKlines({ symbol: 'BTC_USDT', interval: '30m', limit: 5, start: timestamp('2022-10-05 10:00'), end: timestamp('2022-10-01 09:30') });
